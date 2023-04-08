@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Literal, Any, Callable
 from pathlib import Path
 
-import config
+from . import config
 
 
 def log_json(prices: dict,

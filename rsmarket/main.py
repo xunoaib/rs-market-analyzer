@@ -6,10 +6,7 @@ from typing import Any, Literal
 from sqlalchemy import Engine
 from tabulate import tabulate
 
-import api
-import db
-import config
-import logger as rslogger
+from . import api, db, config, logger as rslogger
 
 
 def json_to_rows(data: dict):
@@ -55,7 +52,8 @@ def price_logger_factory(engine: Engine):
 
 
 def main():
-    args = get_parser().parse_args()
+    parser = get_parser()
+    args = parser.parse_args()
     config.DATA_DIR.mkdir(exist_ok=True)
 
     # ensure mappings/recipes have been downloaded
@@ -79,6 +77,8 @@ def main():
 
     elif args.cmd == 'dbtest':
         return db.test_queries(engine)
+
+    parser.print_help()
 
 
 if __name__ == '__main__':

@@ -6,8 +6,8 @@ from sqlalchemy import Engine, create_engine, select, func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import config
-from dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice
+from . import config
+from .dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Literal
 import json
 import requests
 
-import config
+from . import config
 
 
 def request(endpoint: Literal['latest', '5m', '1h', 'mapping'],
