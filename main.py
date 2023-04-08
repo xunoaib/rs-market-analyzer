@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import json
+from typing import Any
+
+from tabulate import tabulate
 
 import api
 import config
@@ -12,10 +15,10 @@ def json_to_rows(data: dict):
     '''Transform a prices dict to a CSV-like list of rows. The first row contains the column names'''
 
     # NOTE: code duplicated in db.sql_from_dict
-    keys = ['id'] + sorted(set(key for info in data.values() for key in info))
-    rows = [(int(item_id), ) + tuple(map(item_data.get, keys))
-            for item_id, item_data in data.items()]
-    return [tuple(keys)] + rows
+    keys = sorted(set(key for info in data.values() for key in info))
+    rows: list[Any] = [[int(item_id)] + list(map(item_data.get, keys))
+                       for item_id, item_data in data.items()]
+    return ['id'] + keys, rows
 
 
 def get_parser():
@@ -53,14 +56,12 @@ def main():
     # ensure mappings/recipes have been downloaded
     mappings = api.load_mappings()
     recipes = api.load_recipes()
-
     prices = api.request('latest')
 
     # transform price dict into a list of tuples
-    headings, *rows = json_to_rows(prices['data'])
-    print(headings)
-    for row in rows[:5]:
-        print(row)
+    headers, rows = json_to_rows(prices['data'])
+    print(tabulate(rows[:5], headers=headers))
+
 
 if __name__ == '__main__':
     try:
