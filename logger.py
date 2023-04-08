@@ -1,43 +1,11 @@
-from datetime import datetime, timedelta
-from functools import partial
-from typing import Literal, Any, Callable
-from pathlib import Path
 import os
 import json
-import sqlite3
 import time
+from datetime import datetime, timedelta
+from typing import Literal, Any, Callable
+from pathlib import Path
 
-import api
 import config
-import db
-
-
-def sqlite_logger(db_fname: str | os.PathLike = config.DB_PATH):
-    '''Prepares and returns a partial function which logs prices to a database'''
-
-    return partial(log_sqlite, con=db.connect(db_fname))
-
-
-def json_logger(directory: str | os.PathLike = config.DATA_DIR / 'json'):
-    '''Prepares and returns a partial function which logs prices to a JSON file'''
-
-    return partial(log_json, directory=directory)
-
-
-def log_sqlite(prices: dict, con: sqlite3.Connection):
-    '''Requests and logs item prices to a SQLite database'''
-
-    # first add extra fields to be stored in the database
-    price_data = prices['data']
-    timestamp = int(datetime.utcnow().timestamp())
-    for item_id, item_data in price_data.items():
-        item_data['id'] = int(item_id)
-        item_data['timestamp'] = prices.get('timestamp', timestamp)
-
-    # convert and insert price dicts into the database
-    table = db.endpoint_to_table(prices['endpoint'])
-    db.insert_from_dict(price_data, table, con.cursor())
-    con.commit()
 
 
 def log_json(prices: dict,
@@ -53,56 +21,71 @@ def log_json(prices: dict,
     return fname
 
 
-def loop(log_func: Callable[[dict], Any], log_now: bool = False):
+def round_down_1h(dt: datetime):
+    '''Rounds a datetime down to the current hour, on the hour'''
+
+    return dt - timedelta(
+        minutes=dt.minute, seconds=dt.second, microseconds=dt.microsecond)
+
+
+def round_down_5m(dt: datetime):
+    '''Rounds a datetime down to the current 5th minute'''
+
+    return dt - timedelta(
+        minutes=dt.minute % 5, seconds=dt.second, microseconds=dt.microsecond)
+
+
+def loop(
+    request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
+    log_now: bool = False,
+    enable_5m: bool = True,
+    enable_1h: bool = True,
+    enable_latest: bool = True,
+):
     '''
     Continuously requests and logs prices at 5m and 1h intervals using the
-    given log_func. Enabling log_now will also log prices immediately when this
-    function is called, instead of waiting until the next predefined interval.
+    given request_and_log function. Enabling log_now will immediately log
+    prices when this function is called, instead of waiting until the next
+    logging interval. Logging of individual endpoints can be enabled or
+    disabled using the enable_* parameters.
 
-    :param logfunc: A logging function with the signature logfunc(prices), preferably one returned by json_logger or sqlite_logger.
+    :param request_and_log: A logging function which accepts a dict of prices and logs them somewhere.
+    :param log_now: Whether to log prices immediately or wait until the next predefined logging interval.
     '''
 
-    def request_and_log(endpoint: Literal['latest', '5m', '1h']):
-        prices = api.request(endpoint)
-        try:
-            log_func(prices)
-        except sqlite3.IntegrityError as exc:
-            print(f'Skipping duplicate rows ({exc})')
-
-    def round_down_1h(dt: datetime):
-        return dt - timedelta(minutes=now.minute,
-                              seconds=now.second,
-                              microseconds=now.microsecond)
-
-    def round_down_5m(dt: datetime):
-        return dt - timedelta(minutes=now.minute % 5,
-                              seconds=now.second,
-                              microseconds=now.microsecond)
-
-    # TODO: ignore duplicate constraint errors!
     if log_now:
-        print('Requesting 1h, 5m, and latest prices...')
-        request_and_log('1h')
-        request_and_log('5m')
-        request_and_log('latest')
+        print('Requesting prices immediately...')
+        if enable_latest:
+            request_and_log('latest')
+        if enable_5m:
+            request_and_log('5m')
+        if enable_1h:
+            request_and_log('1h')
 
-    # round time down to the last 5th minute
     now = datetime.now()
     last_1h = round_down_1h(now)
     last_5m = round_down_5m(now)
 
-    print('Next 1h log at', last_1h + timedelta(hours=1))
-    print('Next 5m log at', last_5m + timedelta(minutes=5))
+    if enable_1h:
+        print(last_1h + timedelta(hours=1), '<-- Next 1h log')
+    if enable_5m:
+        print(last_5m + timedelta(minutes=5), '<-- Next 5m/latest log')
 
     while True:
         now = datetime.now()
         if now - last_5m > timedelta(minutes=5, seconds=15):
-            request_and_log('5m')
-            request_and_log('latest')
+            logged = []
+            if enable_5m:
+                request_and_log('5m')
+                logged.append('5m')
+            if enable_latest:
+                request_and_log('latest')
+                logged.append('latest')
+            if logged:
+                print(last_5m, '- Logged', ' and '.join(logged))
             last_5m = round_down_5m(now)
-            print('Logged', last_5m)
         if now - last_1h > timedelta(hours=1, seconds=15):
             request_and_log('1h')
+            print(last_1h, 'Logged 1h')
             last_1h = round_down_1h(now)
-            print('Logged', last_1h)
         time.sleep(1)
