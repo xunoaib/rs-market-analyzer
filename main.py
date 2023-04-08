@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import sqlite3
 
 import api
 import config
 import db
 import logger
+
+
+def json_to_rows(data: dict):
+    '''Transform a prices dict to a CSV-like list of rows. The first row contains the column names'''
+
+    # NOTE: code duplicated in db.sql_from_dict
+    keys = ['id'] + sorted(set(key for info in data.values() for key in info))
+    rows = [(int(item_id), ) + tuple(map(item_data.get, keys))
+            for item_id, item_data in data.items()]
+    return [tuple(keys)] + rows
 
 
 def get_parser():
@@ -31,10 +40,6 @@ def main():
     args = get_parser().parse_args()
     config.DATA_DIR.mkdir(exist_ok=True)
 
-    # con = db.connect(config.DB_PATH)
-    # cur = con.cursor()
-    # exit()
-
     if args.cmd == 'dump':
         prices = api.request(args.endpoint)
         print(json.dumps(prices, indent=2))
@@ -50,10 +55,12 @@ def main():
     recipes = api.load_recipes()
 
     prices = api.request('latest')
-    print(prices)
 
-    # logfunc = logger.json_logger()
-    # logfunc = logger.sqlite_logger()
+    # transform price dict into a list of tuples
+    headings, *rows = json_to_rows(prices['data'])
+    print(headings)
+    for row in rows[:5]:
+        print(row)
 
 if __name__ == '__main__':
     try:
