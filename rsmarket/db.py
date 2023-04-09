@@ -12,9 +12,11 @@ from .dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice
 logger = logging.getLogger(__name__)
 
 
-def initialize_database(engine: Engine, mappings: dict):
-    '''Initialize database tables and add item mappings'''
+def connect_and_initialize(mappings: dict,
+                           engine_url: str = config.DB_ENGINE_URL):
+    '''Connect to the database, initialize tables, and add item mappings'''
 
+    engine = create_engine(engine_url, echo=False)
     Base.metadata.create_all(engine)
 
     with Session(engine) as session:
@@ -24,11 +26,6 @@ def initialize_database(engine: Engine, mappings: dict):
         except IntegrityError:
             logger.debug('Skipped adding item mappings as they already exist')
 
-
-def connect_and_initialize(mappings: dict,
-                           engine_url: str = config.DB_ENGINE_URL):
-    engine = create_engine(engine_url, echo=False)
-    initialize_database(engine, mappings)
     return engine
 
 
