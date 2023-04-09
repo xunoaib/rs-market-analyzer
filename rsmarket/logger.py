@@ -35,57 +35,59 @@ def round_down_5m(dt: datetime):
         minutes=dt.minute % 5, seconds=dt.second, microseconds=dt.microsecond)
 
 
-def loop(
-    request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
-    log_now: bool = False,
-    enable_5m: bool = True,
-    enable_1h: bool = True,
-    enable_latest: bool = True,
-):
+def loop(request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
+         log_now: bool = False,
+         enable_5m_interval: bool = True,
+         enable_1h_interval: bool = True):
     '''
-    Continuously requests and logs prices at 5m and 1h intervals using the
-    given request_and_log function. Enabling log_now will immediately log
-    prices when this function is called, instead of waiting until the next
-    logging interval. Logging of individual endpoints can be enabled or
-    disabled using the enable_* parameters.
+    Continuously requests and logs 5m, 1h, and latest prices at 5m and 1h
+    intervals using the given request_and_log function. Enabling log_now will
+    immediately log prices when this function is called instead of waiting
+    for the next log interval.
+
+    The enable_* functions control the frequency of logs, ie: to prevent the
+    5m/latest prices from being logged every 5m and filling up the database.
+    Disabling the 5m interval will cause all endpoints to instead be logged
+    every 1h.
 
     :param request_and_log: A logging function which accepts a dict of prices and logs them somewhere.
     :param log_now: Whether to log prices immediately or wait until the next predefined logging interval.
     '''
 
+    if not enable_5m_interval and not enable_1h_interval:
+        raise AssertionError('At least one logging interval must be enabled')
+
     if log_now:
         print('Requesting prices immediately...')
-        if enable_latest:
-            request_and_log('latest')
-        if enable_5m:
-            request_and_log('5m')
-        if enable_1h:
-            request_and_log('1h')
+        request_and_log('latest')
+        request_and_log('5m')
+        request_and_log('1h')
 
     now = datetime.now()
     last_1h = round_down_1h(now)
     last_5m = round_down_5m(now)
 
-    if enable_1h:
-        print(last_1h + timedelta(hours=1), '<-- Next 1h log')
-    if enable_5m:
-        print(last_5m + timedelta(minutes=5), '<-- Next 5m/latest log')
+    if enable_1h_interval:
+        print(last_1h + timedelta(hours=1), '<-- Next hourly log event')
+    if enable_5m_interval:
+        print(last_5m + timedelta(minutes=5), '<-- Next five minute log event')
 
     while True:
         now = datetime.now()
-        if now - last_5m > timedelta(minutes=5, seconds=15):
-            logged = []
-            if enable_5m:
-                request_and_log('5m')
-                logged.append('5m')
-            if enable_latest:
-                request_and_log('latest')
-                logged.append('latest')
-            if logged:
-                print(last_5m, '- Logged', ' and '.join(logged))
+
+        if enable_5m_interval and now - last_5m > timedelta(minutes=5,
+                                                            seconds=15):
+            request_and_log('5m')
+            request_and_log('latest')
             last_5m = round_down_5m(now)
-        if now - last_1h > timedelta(hours=1, seconds=15):
+
+        if enable_1h_interval and now - last_1h > timedelta(hours=1,
+                                                            seconds=15):
             request_and_log('1h')
-            print(last_1h, 'Logged 1h')
+            # only log these endpoints if they weren't logged above
+            if not enable_5m_interval:
+                request_and_log('5m')
+                request_and_log('latest')
             last_1h = round_down_1h(now)
+
         time.sleep(1)
