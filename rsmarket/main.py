@@ -24,6 +24,10 @@ def get_parser():
     subparsers = parser.add_subparsers(dest='cmd')
     parser_log = subparsers.add_parser(
         'log', help='Continuously log API prices to the database')
+    parser_log.add_argument('-H',
+                            '--only-hourly',
+                            action='store_true',
+                            help='Only log hourly prices')
     parser_log.add_argument('-n',
                             '--now',
                             action='store_true',
@@ -72,8 +76,16 @@ def main():
         return print(json.dumps(prices, indent=2))
 
     elif args.cmd == 'log':
+        kwargs = {}
+        if args.only_hourly:
+            kwargs = {
+                'enable_1h': True,
+                'enable_latest': False,
+                'enable_5m': False,
+            }
+
         request_and_log = price_logger_factory(engine)
-        return rslogger.loop(request_and_log, log_now=args.now)
+        return rslogger.loop(request_and_log, log_now=args.now, **kwargs)
 
     elif args.cmd == 'dbtest':
         return db.test_queries(engine)
