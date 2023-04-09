@@ -58,7 +58,7 @@ def loop(request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
         raise AssertionError('At least one logging interval must be enabled')
 
     if log_now:
-        print('Requesting prices immediately...')
+        print('Requesting 1h, 5m, and latest prices immediately...')
         request_and_log('latest')
         request_and_log('5m')
         request_and_log('1h')
@@ -79,15 +79,20 @@ def loop(request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
                                                             seconds=15):
             request_and_log('5m')
             request_and_log('latest')
+            print(last_5m, 'Logged 5m and latest prices')
             last_5m = round_down_5m(now)
 
         if enable_1h_interval and now - last_1h > timedelta(hours=1,
                                                             seconds=15):
             request_and_log('1h')
+
             # only log these endpoints if they weren't logged above
             if not enable_5m_interval:
                 request_and_log('5m')
                 request_and_log('latest')
+                print(last_1h, 'Logged 1h, 5m, and latest prices')
+            else:
+                print(last_1h, 'Logged 1h prices')
             last_1h = round_down_1h(now)
 
         time.sleep(1)

@@ -46,6 +46,8 @@ def get_parser():
                              '--tabulate',
                              action='store_true',
                              help='Pretty-print tabular results')
+
+    parser_dbtest = subparsers.add_parser('dbtest', help='Run database tests')
     return parser
 
 
