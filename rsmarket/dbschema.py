@@ -1,5 +1,17 @@
+from datetime import datetime
+from dateutil import tz
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+def format_timestamp(timestamp: int, date_format='%b %d %Y %H:%M'):
+    '''Convert UTC timestamp to local datetime'''
+
+    utc = datetime.utcfromtimestamp(timestamp)
+    utc = utc.replace(tzinfo=tz.tzutc())
+    localtime = utc.astimezone(tz.tzlocal())
+    return localtime.strftime(date_format)
 
 
 class Base(DeclarativeBase):
@@ -35,7 +47,10 @@ class LatestPrice(Base):
     mapping: Mapped[ItemInfo] = relationship()
 
     def __repr__(self) -> str:
-        return f'LatestPrice(id={self.id!r}, low={self.low}, high={self.high}, lowTime={self.lowTime}, highTime={self.highTime}, timestamp={self.timestamp!r})'
+        timestamp = format_timestamp(self.timestamp)
+        highTime = format_timestamp(self.highTime)
+        lowTime = format_timestamp(self.lowTime)
+        return f'LatestPrice(id={self.id!r}, low={self.low}, high={self.high}, lowTime="{lowTime}", highTime="{highTime}", timestamp="{timestamp}")'
 
 
 class AvgHourPrice(Base):
@@ -50,7 +65,8 @@ class AvgHourPrice(Base):
     mapping: Mapped[ItemInfo] = relationship()
 
     def __repr__(self) -> str:
-        return f'AvgHourPrice(id={self.id!r}, avgLowPrice={self.avgLowPrice}, avgHighPrice={self.avgHighPrice}, highPriceVolume={self.highPriceVolume}, lowPriceVolume={self.lowPriceVolume}, timestamp={self.timestamp!r})'
+        timestamp = format_timestamp(self.timestamp)
+        return f'AvgHourPrice(id={self.id!r}, avgLowPrice={self.avgLowPrice}, avgHighPrice={self.avgHighPrice}, highPriceVolume={self.highPriceVolume}, lowPriceVolume={self.lowPriceVolume}, timestamp="{timestamp}")'
 
 
 class AvgFiveMinPrice(Base):
@@ -65,4 +81,5 @@ class AvgFiveMinPrice(Base):
     mapping: Mapped[ItemInfo] = relationship()
 
     def __repr__(self) -> str:
-        return f'AvgFiveMinPrice(id={self.id!r}, avgLowPrice={self.avgLowPrice}, avgHighPrice={self.avgHighPrice}, highPriceVolume={self.highPriceVolume}, lowPriceVolume={self.lowPriceVolume}, timestamp={self.timestamp!r})'
+        timestamp = format_timestamp(self.timestamp)
+        return f'AvgFiveMinPrice(id={self.id!r}, avgLowPrice={self.avgLowPrice}, avgHighPrice={self.avgHighPrice}, highPriceVolume={self.highPriceVolume}, lowPriceVolume={self.lowPriceVolume}, timestamp="{timestamp}")'

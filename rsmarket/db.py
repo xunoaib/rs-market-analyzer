@@ -5,9 +5,10 @@ from datetime import datetime
 from sqlalchemy import Engine, create_engine, select, func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
+from tabulate import tabulate
 
 from . import config
-from .dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice
+from .dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice, format_timestamp
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +51,62 @@ def prices_to_objects(
     ]
 
 
-# XXX: just for testing
+def format_row_timestamps(rows, headers: list[str]):
+    '''
+    Converts all UTC timestamps into datetime strings given a list of rows and
+    their headers. Any headers containing the case-insensitive string 'time'
+    will be converted.
+    '''
+
+    results = []
+    for row in rows:
+        tup = tuple(
+            format_timestamp(v) if 'time' in k.lower() else v
+            for k, v in zip(headers, row))
+        results.append(tup)
+    return results
+
+
+def latest_margins(session: Session):
+    '''Shows the latest margins for all items'''
+
+    timestamp = select(func.max(LatestPrice.timestamp)).scalar_subquery()
+    col_margin = (LatestPrice.high - LatestPrice.low).label('margin')
+    columns = (col_margin, LatestPrice.low, LatestPrice.high, LatestPrice.id,
+               ItemInfo.name, LatestPrice.lowTime, LatestPrice.highTime)
+
+    query = (
+        select(*columns)  #
+        .join(ItemInfo, LatestPrice.id == ItemInfo.id)  #
+        .where(LatestPrice.timestamp == timestamp)  #
+        .order_by('margin')  #
+    )
+
+    result = session.execute(query)
+    rows = result.all()
+    headers = list(result.keys())
+    rows = format_row_timestamps(rows, headers)
+
+    print(tabulate(rows, headers=headers))
+
+
 def test_queries(engine: Engine):
+    '''Sandbox for database queries'''
+
     session = Session(engine)
+    return latest_margins(session)
+
+    # show unique timestamps for any/all log events
+    q1 = select(AvgHourPrice.timestamp).distinct()
+    q2 = select(AvgFiveMinPrice.timestamp).distinct()
+    # q3 = select(LatestPrice.timestamp).distinct()
+    # q = q1.union(q2, q3)
+    q = q1.union(q2)
+
+    rows = session.execute(q).all()
+    print(len(rows))
+
+    return  # XXX
 
     # select all item prices recorded in the most recent log
     timestamp = select(func.max(LatestPrice.timestamp)).scalar_subquery()
