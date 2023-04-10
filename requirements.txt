@@ -1,2 +1,4 @@
+python-dateutil
+requests
 sqlalchemy
 tabulate

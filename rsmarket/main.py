@@ -20,7 +20,7 @@ def json_to_rows(data: dict):
 
 
 def get_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog='rsmarket')
     subparsers = parser.add_subparsers(dest='cmd')
     parser_log = subparsers.add_parser(
         'log', help='Continuously log API prices to the database')
