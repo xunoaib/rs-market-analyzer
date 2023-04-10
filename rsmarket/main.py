@@ -24,6 +24,9 @@ def get_parser():
     subparsers = parser.add_subparsers(dest='cmd')
     parser_log = subparsers.add_parser(
         'log', help='Continuously log API prices to the database')
+    parser_log.add_argument('-f',
+                            '--force',
+                            help='Skip log confirmation prompt')
     parser_log.add_argument('-dh',
                             '--disable-1h',
                             action='store_true',
@@ -82,6 +85,8 @@ def main():
         return print(json.dumps(prices, indent=2))
 
     elif args.cmd == 'log':
+        if not args.force and input('Are you sure you want to begin logging? [y/N] ').lower() != 'y':
+            return
         request_and_log = price_logger_factory(engine)
         return rslogger.loop(request_and_log,
                              log_now=args.now,
