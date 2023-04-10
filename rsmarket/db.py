@@ -71,9 +71,9 @@ def latest_margins(session: Session):
     '''Shows the latest margins for all items'''
 
     timestamp = select(func.max(LatestPrice.timestamp)).scalar_subquery()
-    col_margin = (LatestPrice.high - LatestPrice.low).label('margin')
-    col_profit = (col_margin * ItemInfo.limit).label('profit')
-    columns = (col_margin, ItemInfo.limit, col_profit, LatestPrice.low,
+    margin = (LatestPrice.high - LatestPrice.low).label('margin')
+    profit = (margin * ItemInfo.limit).label('profit')
+    columns = (margin, ItemInfo.limit, profit, LatestPrice.low,
                LatestPrice.high, LatestPrice.id, ItemInfo.name,
                LatestPrice.lowTime, LatestPrice.highTime)
 
@@ -82,7 +82,7 @@ def latest_margins(session: Session):
         .join(ItemInfo, LatestPrice.id == ItemInfo.id)  #
         .where(LatestPrice.timestamp == timestamp)  #
         .where(ItemInfo.members == 0) #
-        .order_by(col_margin.desc())  #
+        .order_by(margin.desc())  #
     )
 
     result = session.execute(query)
