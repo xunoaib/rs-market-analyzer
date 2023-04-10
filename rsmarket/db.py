@@ -51,7 +51,7 @@ def prices_to_objects(
     ]
 
 
-def format_row_timestamps(rows, headers: list[str]):
+def convert_row_timestamps(rows, headers: list[str]):
     '''
     Converts all UTC timestamps into datetime strings given a list of rows and
     their headers. Any headers containing the case-insensitive string 'time'
@@ -85,7 +85,7 @@ def latest_margins(session: Session):
     result = session.execute(query)
     rows = result.all()
     headers = list(result.keys())
-    rows = format_row_timestamps(rows, headers)
+    rows = convert_row_timestamps(rows, headers)
 
     print(tabulate(rows, headers=headers))
 
