@@ -68,21 +68,28 @@ def convert_row_timestamps(rows, headers: list[str]):
 
 
 def latest_margins(session: Session):
-    '''Shows the latest margins for all items'''
+    '''Shows the highest and latest profit margins for all F2P items'''
 
-    timestamp = select(func.max(LatestPrice.timestamp)).scalar_subquery()
+    ts_last_latest = select(func.max(LatestPrice.timestamp)).scalar_subquery()
+    ts_last_hour = select(func.max(AvgHourPrice.timestamp)).scalar_subquery()
+
     margin = (LatestPrice.high - LatestPrice.low).label('margin')
     profit = (margin * ItemInfo.limit).label('profit')
-    columns = (margin, ItemInfo.limit, profit, LatestPrice.low,
+    volume = (AvgHourPrice.lowPriceVolume
+              + AvgHourPrice.highPriceVolume).label('volume')
+    columns = (margin, volume, ItemInfo.limit, profit, LatestPrice.low,
                LatestPrice.high, LatestPrice.id, ItemInfo.name,
                LatestPrice.lowTime, LatestPrice.highTime)
 
     query = (
         select(*columns)  #
         .join(ItemInfo, LatestPrice.id == ItemInfo.id)  #
-        .where(LatestPrice.timestamp == timestamp)  #
-        .where(ItemInfo.members == 0) #
-        .order_by(margin.desc())  #
+        .join(AvgHourPrice, LatestPrice.id == AvgHourPrice.id)  #
+        .where(LatestPrice.timestamp == ts_last_latest)  #
+        .where(AvgHourPrice.timestamp == ts_last_hour)  #
+        .where(ItemInfo.members == 0)  #
+        .where(volume > 10000)  #
+        .order_by(profit.desc())  #
     )
 
     result = session.execute(query)
@@ -96,41 +103,9 @@ def latest_margins(session: Session):
 def test_queries(engine: Engine):
     '''Sandbox for database queries'''
 
-    session = Session(engine)
-    return latest_margins(session)
-
-    # show unique timestamps for any/all log events
-    q1 = select(AvgHourPrice.timestamp).distinct()
-    q2 = select(AvgFiveMinPrice.timestamp).distinct()
-    # q3 = select(LatestPrice.timestamp).distinct()
-    # q = q1.union(q2, q3)
-    q = q1.union(q2)
-
-    rows = session.execute(q).all()
-    print(len(rows))
-
-    return  # XXX
-
-    # select all item prices recorded in the most recent log
-    timestamp = select(func.max(LatestPrice.timestamp)).scalar_subquery()
-    stmt = select(LatestPrice).where(LatestPrice.timestamp == timestamp)
-
-    fields = ((LatestPrice.high - ItemInfo.value).label('diff'),
-              LatestPrice.high, ItemInfo.value, ItemInfo.name)
-
-    stmt = select(*fields) \
-        .select_from(ItemInfo) \
-        .join(LatestPrice, ItemInfo.id == LatestPrice.id) \
-        .where(LatestPrice.timestamp == timestamp) \
-        .where(ItemInfo.members == 0) \
-        .order_by('diff')
-
-    for res in session.execute(stmt):
-        print(res)
-        # print(f'{res.mapping=}')  # inspect foreign key
-
-    session.commit()
-    session.close()
+    with Session(engine) as session:
+        latest_margins(session)
+        session.commit()
 
 
 def log_prices_to_db(json_prices: dict, engine: Engine):
