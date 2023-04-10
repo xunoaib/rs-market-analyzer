@@ -72,14 +72,17 @@ def latest_margins(session: Session):
 
     timestamp = select(func.max(LatestPrice.timestamp)).scalar_subquery()
     col_margin = (LatestPrice.high - LatestPrice.low).label('margin')
-    columns = (col_margin, LatestPrice.low, LatestPrice.high, LatestPrice.id,
-               ItemInfo.name, LatestPrice.lowTime, LatestPrice.highTime)
+    col_profit = (col_margin * ItemInfo.limit).label('profit')
+    columns = (col_margin, ItemInfo.limit, col_profit, LatestPrice.low,
+               LatestPrice.high, LatestPrice.id, ItemInfo.name,
+               LatestPrice.lowTime, LatestPrice.highTime)
 
     query = (
         select(*columns)  #
         .join(ItemInfo, LatestPrice.id == ItemInfo.id)  #
         .where(LatestPrice.timestamp == timestamp)  #
-        .order_by('margin')  #
+        .where(ItemInfo.members == 0) #
+        .order_by(col_margin.desc())  #
     )
 
     result = session.execute(query)
