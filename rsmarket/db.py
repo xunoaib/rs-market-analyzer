@@ -13,8 +13,9 @@ from .dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice
 logger = logging.getLogger(__name__)
 
 
-def connect_and_initialize(mappings: dict,
-                           engine_url: str = config.DB_ENGINE_URL):
+def connect_and_initialize(
+    mappings: dict, engine_url: str = config.DB_ENGINE_URL
+):
     '''Connect to the database, initialize tables, and add item mappings'''
 
     engine = create_engine(engine_url, echo=False)
@@ -31,7 +32,8 @@ def connect_and_initialize(mappings: dict,
 
 
 def prices_to_objects(
-        prices: dict) -> list[LatestPrice | AvgFiveMinPrice | AvgHourPrice]:
+    prices: dict
+) -> list[LatestPrice | AvgFiveMinPrice | AvgHourPrice]:
     '''Converts a prices dict (from an API endpoint) into a new list of database objects'''
 
     classes = {
@@ -62,7 +64,8 @@ def convert_row_timestamps(rows, headers: list[str]):
     for row in rows:
         tup = tuple(
             format_timestamp(v) if 'time' in k.lower() else v
-            for k, v in zip(headers, row))
+            for k, v in zip(headers, row)
+        )
         results.append(tup)
     return results
 
@@ -77,9 +80,11 @@ def latest_margins(session: Session):
     profit = (margin * ItemInfo.limit).label('profit')
     volume = (AvgHourPrice.lowPriceVolume
               + AvgHourPrice.highPriceVolume).label('volume')
-    columns = (margin, volume, ItemInfo.limit, profit, LatestPrice.low,
-               LatestPrice.high, LatestPrice.id, ItemInfo.name,
-               LatestPrice.lowTime, LatestPrice.highTime)
+    columns = (
+        margin, volume, ItemInfo.limit, profit, LatestPrice.low,
+        LatestPrice.high, LatestPrice.id, ItemInfo.name, LatestPrice.lowTime,
+        LatestPrice.highTime
+    )
 
     query = (
         select(*columns)  #
@@ -120,6 +125,8 @@ def log_prices_to_db(json_prices: dict, engine: Engine):
             session.commit()
             return True
         except IntegrityError:
-            logger.error('Skipping duplicate %s log @ %s' %
-                         (json_prices['endpoint'], json_prices['timestamp']))
+            logger.error(
+                'Skipping duplicate %s log @ %s' %
+                (json_prices['endpoint'], json_prices['timestamp'])
+            )
             return False

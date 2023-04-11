@@ -14,8 +14,10 @@ def json_to_rows(data: dict):
 
     # NOTE: code duplicated in db.sql_from_dict
     keys = sorted(set(key for info in data.values() for key in info))
-    rows: list[Any] = [[int(item_id)] + list(map(item_data.get, keys))
-                       for item_id, item_data in data.items()]
+    rows: list[Any] = [
+        [int(item_id)] + list(map(item_data.get, keys))
+        for item_id, item_data in data.items()
+    ]
     return ['id'] + keys, rows
 
 
@@ -23,32 +25,47 @@ def get_parser():
     parser = argparse.ArgumentParser(prog='rsmarket')
     subparsers = parser.add_subparsers(dest='cmd')
     parser_log = subparsers.add_parser(
-        'log', help='Continuously log API prices to the database')
-    parser_log.add_argument('-f',
-                            '--force',
-                            help='Skip log confirmation prompt')
-    parser_log.add_argument('-dh',
-                            '--disable-1h',
-                            action='store_true',
-                            help='Disable hourly logging')
-    parser_log.add_argument('-dm',
-                            '--disable-5m',
-                            action='store_true',
-                            help='Disable 5-minute logging')
-    parser_log.add_argument('-n',
-                            '--now',
-                            action='store_true',
-                            help='Log current prices immediately')
+        'log', help='Continuously log API prices to the database'
+    )
+    parser_log.add_argument(
+        '-f',
+        '--force',
+        action='store_true',
+        help='Skip log confirmation prompt'
+    )
+    parser_log.add_argument(
+        '-dh',
+        '--disable-1h',
+        action='store_true',
+        help='Disable hourly logging'
+    )
+    parser_log.add_argument(
+        '-dm',
+        '--disable-5m',
+        action='store_true',
+        help='Disable 5-minute logging'
+    )
+    parser_log.add_argument(
+        '-n',
+        '--now',
+        action='store_true',
+        help='Log current prices immediately'
+    )
 
     parser_json = subparsers.add_parser(
-        'json', help='Dump raw JSON from API endpoints')
-    parser_json.add_argument('endpoint',
-                             choices=['latest', '5m', '1h', 'mapping'],
-                             help='API endpoint to request')
-    parser_json.add_argument('-t',
-                             '--tabulate',
-                             action='store_true',
-                             help='Pretty-print tabular results')
+        'json', help='Dump raw JSON from API endpoints'
+    )
+    parser_json.add_argument(
+        'endpoint',
+        choices=['latest', '5m', '1h', 'mapping'],
+        help='API endpoint to request'
+    )
+    parser_json.add_argument(
+        '-t',
+        '--tabulate',
+        action='store_true',
+        help='Pretty-print tabular results'
+    )
 
     parser_dbtest = subparsers.add_parser('dbtest', help='Run database tests')
     return parser
@@ -85,13 +102,17 @@ def main():
         return print(json.dumps(prices, indent=2))
 
     elif args.cmd == 'log':
-        if not args.force and input('Are you sure you want to begin logging? [y/N] ').lower() != 'y':
+        if not args.force and input(
+            'Are you sure you want to begin logging? [y/N]'
+        ).lower() != 'y':
             return
         request_and_log = price_logger_factory(engine)
-        return rslogger.loop(request_and_log,
-                             log_now=args.now,
-                             enable_1h_interval=not args.disable_1h,
-                             enable_5m_interval=not args.disable_5m)
+        return rslogger.loop(
+            request_and_log,
+            log_now=args.now,
+            enable_1h_interval=not args.disable_1h,
+            enable_5m_interval=not args.disable_5m
+        )
 
     elif args.cmd == 'dbtest':
         return db.test_queries(engine)

@@ -7,9 +7,11 @@ import requests
 from . import config
 
 
-def request(endpoint: Literal['latest', '5m', '1h', 'mapping'],
-            annotate: bool = True,
-            headers=config.HEADERS):
+def request(
+    endpoint: Literal['latest', '5m', '1h', 'mapping'],
+    annotate: bool = True,
+    headers=config.HEADERS
+):
     '''
     Makes a request to the Runescape wiki prices API. Returns a JSON response
     for the given endpoint except 'mapping' which returns a list.
@@ -21,15 +23,17 @@ def request(endpoint: Literal['latest', '5m', '1h', 'mapping'],
 
     data = requests.get(
         f'https://prices.runescape.wiki/api/v1/osrs/{endpoint}',
-        headers=headers).json()
+        headers=headers
+    ).json()
 
     if annotate and endpoint != 'mapping':
         data |= {'endpoint': endpoint}
     return data
 
 
-def load_mappings(fname=config.DATA_DIR / 'mappings.json',
-                  download: bool = True):
+def load_mappings(
+    fname=config.DATA_DIR / 'mappings.json', download: bool = True
+):
     '''
     Returns a dictionary of item ids mapped to their static item info (from the 'mappings' endpoint)
 
@@ -50,8 +54,9 @@ def load_mappings(fname=config.DATA_DIR / 'mappings.json',
         return {str(m['id']): m for m in json.load(f)}
 
 
-def load_recipes(fname=config.DATA_DIR / 'recipes.json',
-                 download: bool = True):
+def load_recipes(
+    fname=config.DATA_DIR / 'recipes.json', download: bool = True
+):
     '''
     Returns a list of item recipes (from Flipping-utilities/osrs-datasets)
 

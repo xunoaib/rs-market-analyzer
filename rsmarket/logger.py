@@ -8,8 +8,9 @@ from pathlib import Path
 from . import config
 
 
-def log_json(prices: dict,
-             directory: str | os.PathLike = config.DATA_DIR / 'json'):
+def log_json(
+    prices: dict, directory: str | os.PathLike = config.DATA_DIR / 'json'
+):
     '''Requests and logs item prices to a timestamped JSON file'''
 
     directory = Path(directory)
@@ -25,20 +26,24 @@ def round_down_1h(dt: datetime):
     '''Rounds a datetime down to the current hour, on the hour'''
 
     return dt - timedelta(
-        minutes=dt.minute, seconds=dt.second, microseconds=dt.microsecond)
+        minutes=dt.minute, seconds=dt.second, microseconds=dt.microsecond
+    )
 
 
 def round_down_5m(dt: datetime):
     '''Rounds a datetime down to the current 5th minute'''
 
     return dt - timedelta(
-        minutes=dt.minute % 5, seconds=dt.second, microseconds=dt.microsecond)
+        minutes=dt.minute % 5, seconds=dt.second, microseconds=dt.microsecond
+    )
 
 
-def loop(request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
-         log_now: bool = False,
-         enable_5m_interval: bool = True,
-         enable_1h_interval: bool = True):
+def loop(
+    request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
+    log_now: bool = False,
+    enable_5m_interval: bool = True,
+    enable_1h_interval: bool = True
+):
     '''
     Continuously requests and logs 5m, 1h, and latest prices at 5m and 1h
     intervals using the given request_and_log function. Enabling log_now will
@@ -75,15 +80,17 @@ def loop(request_and_log: Callable[[Literal['latest', '5m', '1h']], Any],
     while True:
         now = datetime.now()
 
-        if enable_5m_interval and now - last_5m > timedelta(minutes=5,
-                                                            seconds=15):
+        if enable_5m_interval and now - last_5m > timedelta(
+            minutes=5, seconds=15
+        ):
             request_and_log('5m')
             request_and_log('latest')
             print(last_5m, 'Logged 5m and latest prices')
             last_5m = round_down_5m(now)
 
-        if enable_1h_interval and now - last_1h > timedelta(hours=1,
-                                                            seconds=15):
+        if enable_1h_interval and now - last_1h > timedelta(
+            hours=1, seconds=15
+        ):
             request_and_log('1h')
 
             # only log these endpoints if they weren't logged above

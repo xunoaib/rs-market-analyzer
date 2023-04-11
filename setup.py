@@ -25,4 +25,5 @@ setup(
     entry_points={
         'console_scripts': ['rsmarket=rsmarket.main:main'],
     },
-    zip_safe=False)
+    zip_safe=False
+)
