@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import cast
 
-from sqlalchemy import Engine, create_engine, select, func
-from sqlalchemy.orm import Session
+from sqlalchemy import Engine, Integer, create_engine, select, func
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy.exc import IntegrityError
 from tabulate import tabulate
 
@@ -70,30 +71,81 @@ def convert_row_timestamps(rows, headers: list[str]):
     return results
 
 
+def add_commas_to_rows(rows):
+    results = []
+    for row in rows:
+        tup = tuple(
+            f'{int(v):,}' if isinstance(v, int) or isinstance(v, float) else v
+            for v in row
+        )
+        results.append(tup)
+    return results
+
+
 def latest_margins(session: Session):
     '''Shows the highest and latest profit margins for all F2P items'''
 
-    ts_last_latest = select(func.max(LatestPrice.timestamp)).scalar_subquery()
-    ts_last_hour = select(func.max(AvgHourPrice.timestamp)).scalar_subquery()
+    # use only use most recent prices
+    ts_latest = select(func.max(LatestPrice.timestamp)).scalar_subquery()
+    ts_hour = select(func.max(AvgHourPrice.timestamp)).scalar_subquery()
+
+    # average hourly volumes calculated from the total daily volumes
+    yesterday = (datetime.utcnow() + timedelta(days=-1)).timestamp()
+    sum_of_volumes = func.sum(
+        AvgHourPrice.highPriceVolume + AvgHourPrice.lowPriceVolume
+    )
+    col_dailyVolume = func.round(sum_of_volumes).label('dailyVol')
+    col_avgHourlyVolume = (col_dailyVolume / 24).label('avgHourlyVol')
+    q_avgHourlyVolume = (
+        select(AvgHourPrice.id, col_dailyVolume, col_avgHourlyVolume)  #
+        .where(AvgHourPrice.timestamp > yesterday)  #
+        .order_by(AvgHourPrice.timestamp)  #
+        .group_by(AvgHourPrice.id)  #
+        .order_by(col_avgHourlyVolume.desc())
+    ).subquery()
+    dailyVolume = q_avgHourlyVolume.c.dailyVol
 
     margin = (LatestPrice.high - LatestPrice.low).label('margin')
     profit = (margin * ItemInfo.limit).label('profit')
-    volume = (AvgHourPrice.lowPriceVolume
-              + AvgHourPrice.highPriceVolume).label('volume')
+    # volume = (AvgHourPrice.lowPriceVolume
+    #           + AvgHourPrice.highPriceVolume).label('totVol')
+    hourlyVolume = q_avgHourlyVolume.c.avgHourlyVol
     columns = (
-        margin, volume, ItemInfo.limit, profit, LatestPrice.low,
-        LatestPrice.high, LatestPrice.id, ItemInfo.name, LatestPrice.lowTime,
-        LatestPrice.highTime
+        profit,
+        # hourlyVolume,
+        dailyVolume,
+        AvgHourPrice.lowPriceVolume.label('lowVol'),
+        AvgHourPrice.highPriceVolume.label('highVol'),
+        # avg_hourly_volume,
+        margin,
+        LatestPrice.low.label('lowPrice'),
+        LatestPrice.high.label('highPrice'),
+        ItemInfo.limit,
+        ItemInfo.name,
+        # LatestPrice.lowTime, LatestPrice.highTime
     )
+
+    # # margins, volumes, and profits based on the last hour's stats (inaccurate)
+    # query = (
+    #     select(*columns)  #
+    #     .join(ItemInfo, LatestPrice.id == ItemInfo.id)  #
+    #     .join(AvgHourPrice, LatestPrice.id == AvgHourPrice.id)  #
+    #     .where(LatestPrice.timestamp == ts_latest)  #
+    #     .where(AvgHourPrice.timestamp == ts_hour)  #
+    #     .where(ItemInfo.members == 0)  #
+    #     .where(volume > 10000)  #
+    #     .order_by(profit.desc())  #
+    # )
 
     query = (
         select(*columns)  #
         .join(ItemInfo, LatestPrice.id == ItemInfo.id)  #
         .join(AvgHourPrice, LatestPrice.id == AvgHourPrice.id)  #
-        .where(LatestPrice.timestamp == ts_last_latest)  #
-        .where(AvgHourPrice.timestamp == ts_last_hour)  #
+        .join(q_avgHourlyVolume, ItemInfo.id == q_avgHourlyVolume.c.id)  #
+        .where(LatestPrice.timestamp == ts_latest)  #
+        .where(AvgHourPrice.timestamp == ts_hour)  #
         .where(ItemInfo.members == 0)  #
-        .where(volume > 10000)  #
+        .where(hourlyVolume * 24 > 10000)  #
         .order_by(profit.desc())  #
     )
 
@@ -101,8 +153,15 @@ def latest_margins(session: Session):
     rows = result.all()
     headers = list(result.keys())
     rows = convert_row_timestamps(rows, headers)
+    rows = add_commas_to_rows(rows)
+    # print(tabulate(rows, headers=headers, stralign='right'))
 
-    print(tabulate(rows, headers=headers))
+    # right-align all columns except the item name
+    colalign = ['left' if h == 'name' else 'right' for h in headers]
+    if not rows:
+        print('No data to show')
+        return
+    print(tabulate(rows, headers=headers, colalign=colalign))
 
 
 def test_queries(engine: Engine):
