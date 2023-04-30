@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
+import logging
 from typing import Any, Literal
 
 from sqlalchemy import Engine
@@ -8,11 +10,15 @@ from tabulate import tabulate
 
 from . import api, db, config, logger as rslogger
 
+logging.basicConfig(
+    level=os.getenv('LOGLEVEL', 'INFO').upper(),
+    format='%(asctime)s %(levelname)-8s %(message)s',
+)
+
 
 def json_to_rows(data: dict):
-    '''Transform a prices dict to a CSV-like list of rows. The first row contains the column names'''
+    '''Transform a prices dict into a CSV-like list of rows. The first row contains the column names'''
 
-    # NOTE: code duplicated in db.sql_from_dict
     keys = sorted(set(key for info in data.values() for key in info))
     rows: list[Any] = [
         [int(item_id)] + list(map(item_data.get, keys))
@@ -68,6 +74,7 @@ def get_parser():
     )
 
     parser_dbtest = subparsers.add_parser('dbtest', help='Run database tests')
+    parser_test = subparsers.add_parser('test', help='For debugging')
     return parser
 
 
@@ -81,7 +88,7 @@ def price_logger_factory(engine: Engine):
     return request_and_log
 
 
-def main():
+def _main():
     parser = get_parser()
     args = parser.parse_args()
     config.DATA_DIR.mkdir(exist_ok=True)
@@ -97,17 +104,17 @@ def main():
 
         if args.tabulate:
             headers, rows = json_to_rows(prices['data'])
-            return print(tabulate(rows, headers=headers))
-
-        return print(json.dumps(prices, indent=2))
+            print(tabulate(rows, headers=headers))
+        else:
+            print(json.dumps(prices, indent=2))
 
     elif args.cmd == 'log':
         if not args.force and input(
-            'Are you sure you want to begin logging? [y/N]'
+            'Are you sure you want to begin logging? [y/N] '
         ).lower() != 'y':
             return
         request_and_log = price_logger_factory(engine)
-        return rslogger.loop(
+        rslogger.loop(
             request_and_log,
             log_now=args.now,
             enable_1h_interval=not args.disable_1h,
@@ -115,13 +122,26 @@ def main():
         )
 
     elif args.cmd == 'dbtest':
-        return db.test_queries(engine)
+        db.test_queries(engine)
 
-    parser.print_help()
+    # elif args.cmd == 'test':
+    #     from sqlalchemy.orm import Session
+    #     from sqlalchemy import select
+    #     from .dbschema import ItemInfo
+    #     with Session(engine) as session:
+    #         known_ids = set(row.id for row in session.execute(select(ItemInfo.id)).all())
+    #         print(known_ids)
+
+    else:
+        parser.print_help()
+
+
+def main():
+    try:
+        return _main()
+    except (KeyboardInterrupt, BrokenPipeError):
+        pass
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (KeyboardInterrupt, BrokenPipeError):
-        pass
+    main()

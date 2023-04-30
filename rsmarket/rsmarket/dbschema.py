@@ -24,7 +24,7 @@ class ItemInfo(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
     name: Mapped[str]
     examine: Mapped[str]
-    members: Mapped[int]
+    members: Mapped[bool]
     value: Mapped[int]
     limit: Mapped[int] = mapped_column(nullable=True)
     lowalch: Mapped[int] = mapped_column(nullable=True)

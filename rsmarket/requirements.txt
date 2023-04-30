@@ -1,4 +1,6 @@
+psycopg2
 python-dateutil
+python-dotenv
 requests
 sqlalchemy
 tabulate

@@ -1,16 +1,10 @@
 from setuptools import setup
 
 
-def readme():
-    with open('README.md') as f:
-        return f.read()
-
-
 setup(
     name='rsmarket',
     version='0.1.0',
     description='Runescape Market Utilities',
-    long_description=readme(),
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',

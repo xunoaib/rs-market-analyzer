@@ -1,3 +1,4 @@
+import logging
 import os
 import json
 import time
@@ -63,19 +64,27 @@ def loop(
         raise AssertionError('At least one logging interval must be enabled')
 
     if log_now:
-        print('Requesting 1h, 5m, and latest prices immediately...')
+        logging.info('Requesting 1h, 5m, and latest prices immediately...')
         request_and_log('latest')
         request_and_log('5m')
         request_and_log('1h')
+
+    logging.info('=== Started price logging loop ===')
 
     now = datetime.now()
     last_1h = round_down_1h(now)
     last_5m = round_down_5m(now)
 
     if enable_1h_interval:
-        print(last_1h + timedelta(hours=1), '<-- Next hourly log event')
+        logging.info(
+            'Next hourly log event at:      {}'.
+            format(last_1h + timedelta(hours=1))
+        )
     if enable_5m_interval:
-        print(last_5m + timedelta(minutes=5), '<-- Next five minute log event')
+        logging.info(
+            'Next five minute log eventat:  {}'.
+            format(last_5m + timedelta(minutes=5))
+        )
 
     while True:
         now = datetime.now()
@@ -85,7 +94,7 @@ def loop(
         ):
             request_and_log('5m')
             request_and_log('latest')
-            print(last_5m, 'Logged 5m and latest prices')
+            logging.info('%s Logged 5m and latest prices' % last_5m)
             last_5m = round_down_5m(now)
 
         if enable_1h_interval and now - last_1h > timedelta(
@@ -97,9 +106,9 @@ def loop(
             if not enable_5m_interval:
                 request_and_log('5m')
                 request_and_log('latest')
-                print(last_1h, 'Logged 1h, 5m, and latest prices')
+                logging.info('%s Logged 1h, 5m, and latest prices' % last_1h)
             else:
-                print(last_1h, 'Logged 1h prices')
+                logging.info('%s Logged 1h prices' % last_1h)
             last_1h = round_down_1h(now)
 
         time.sleep(1)

@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 import logging
 from datetime import datetime, timedelta
-from typing import cast
 
-from sqlalchemy import Engine, Integer, create_engine, select, func
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy import Engine, create_engine, select, func, and_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 from . import config
@@ -27,7 +26,7 @@ def connect_and_initialize(
             session.add_all(ItemInfo(**kwargs) for kwargs in mappings.values())
             session.commit()
         except IntegrityError:
-            logger.debug('Skipped adding item mappings as they already exist')
+            pass
 
     return engine
 
@@ -156,12 +155,12 @@ def latest_margins(session: Session):
     rows = add_commas_to_rows(rows)
     # print(tabulate(rows, headers=headers, stralign='right'))
 
-    # right-align all columns except the item name
-    colalign = ['left' if h == 'name' else 'right' for h in headers]
-    if not rows:
+    if rows:
+        # right-align all columns except the item name
+        colalign = ['left' if h == 'name' else 'right' for h in headers]
+        print(tabulate(rows, headers=headers, colalign=colalign))
+    else:
         print('No data to show')
-        return
-    print(tabulate(rows, headers=headers, colalign=colalign))
 
 
 def test_queries(engine: Engine):
@@ -176,16 +175,39 @@ def log_prices_to_db(json_prices: dict, engine: Engine):
     if 'timestamp' not in json_prices:
         json_prices['timestamp'] = int(datetime.utcnow().timestamp())
 
-    objs = prices_to_objects(json_prices)
-
     with Session(engine) as session:
-        try:
-            session.add_all(objs)
-            session.commit()
-            return True
-        except IntegrityError:
-            logger.error(
-                'Skipping duplicate %s log @ %s' %
+
+        # remove invalid items which would cause foreign key constraints to fail
+        known_ids = set(
+            row.id for row in session.execute(select(ItemInfo.id)).all()
+        )
+
+        objs = prices_to_objects(json_prices)
+        objs = [obj for obj in objs if obj.id in known_ids]
+
+        if not objs:
+            logging.error(
+                'Attempted to log an empty list of prices for endpoint "%s" at %s'
+                % (json_prices['endpoint'], json_prices['timestamp'])
+            )
+            return False
+
+        # check if logs already exist for this endpoint at the given time
+        obj = objs[0]
+        cls = obj.__class__
+
+        res = session.execute(
+            select(cls).where(
+                and_(cls.id == obj.id, cls.timestamp == obj.timestamp)
+            )
+        ).all()
+
+        if res:
+            logging.info(
+                'Skipped adding duplicate log for %s at %s' %
                 (json_prices['endpoint'], json_prices['timestamp'])
             )
             return False
+
+        session.add_all(objs)
+        session.commit()
