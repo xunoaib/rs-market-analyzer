@@ -2,42 +2,35 @@
 
 A Python 3.10+ framework for scraping and analyzing Grand Exchange prices from the Runescape Wiki's [real-time price API](https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices).
 
-## Initial Configuration
+## Configuration
 
 Copy the `example_env` directory to `env`, then modify its contents as needed.
-The `env` directory contains configurations used by the Docker containers and
-`rsmarket` tool.
+The `env` directory contains environment variables used by the `rsmarket` tool
+and the provided Docker containers.
 
-The PostgreSQL database will be initialized with statements from `db/init.sql`.
+The PostgreSQL database is initialized with statements from
+`postgres/init.sql`. If you intend to host a server, modify this file as
+needed, i.e. to change the default usernames, passwords, and roles.
 
-## Client Usage
+The database URL for `rsmarket` must be set in `env/rsmarket-local.env` and/or
+`env/rsmarket-docker.env` depending on how you intend to use `rsmarket`, either
+locally or with the Docker Compose file. However, the default configuration
+should work fine out of the box.
 
-### Running in Docker
+## Usage
 
-`rsmarket` can be built and run in Docker:
+### For client-only use and/or local development
 
-    docker build -t rsmarket    # build the image
-    docker run --rm -it <args>  # run rsmarket in the built image
+- Install `rsmarket` by running `pip install -e rsmarket`
+- Modify `DB_ENGINE_URL` in `env/rsmarket-local.env` or set this environment
+  variable your shell. The URL should conform to the [SQLAlchemy database URL
+  format](https://docs.sqlalchemy.org/en/20/core/engines.html).
+- You should now be able to use the `rsmarket` command
 
-### Installing and Running Locally
+### For database hosting and automatic price logging
 
-`rsmarket` can be installed locally for development purposes. Run `pip install
--e rsmarket` to install the `rsmarket` package and command in an
-[editable](https://pip.pypa.io/en/stable/topics/local-project-installs/) form.
+The Docker Compose file launches a PostgreSQL database and continuously logs
+API prices using the `rsmarket log` command.
 
-## Server Usage
-
-A Docker Compose file is provided to host a PostgreSQL database, continuously
-log API prices with the included `rsmarket` tool, and provide a web-based
-database management interface (pgAdmin).
-
-- Start all services `docker compose up`
-- Stop all services with `docker compose down`
-- Stop all services and purge data volumes with `docker compose down --volumes` (WARNING: destructive!)
-
-### pgAdmin Setup
-
-To manage the database via pgAdmin, first navigate to http://localhost:15432,
-log in with the credentials defined in `env/pgadmin-vars.env`, then add a
-server with the hostname `postgres` and the credentials defined in
-`env/postgres-vars.env`.
+- Start services with `docker compose up`. Add `-d` to run them in the background
+- Stop services with `docker compose down`. Add `--volumes` to completely wipe the database

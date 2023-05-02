@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
+import json
+import logging
+import os
 from pathlib import Path
 from typing import Literal
-import json
+
 import requests
 
-from . import config
+DEFAULT_HEADERS = {'User-Agent': 'Market Experimentation'}
 
 
 def request(
     endpoint: Literal['latest', '5m', '1h', 'mapping'],
     annotate: bool = True,
-    headers=config.HEADERS
+    headers=DEFAULT_HEADERS
 ):
     '''
     Makes a request to the Runescape wiki prices API. Returns a JSON response
@@ -31,9 +34,7 @@ def request(
     return data
 
 
-def load_mappings(
-    fname=config.DATA_DIR / 'mappings.json', download: bool = True
-):
+def load_mappings(fname: str | os.PathLike, download: bool = True):
     '''
     Returns a dictionary of item ids mapped to their static item info (from the 'mappings' endpoint)
 
@@ -45,7 +46,7 @@ def load_mappings(
         if not download:
             raise FileNotFoundError(f'{fname} not found. Did you download it?')
 
-        print(f'Downloading mappings to {fname}')
+        logging.info(f'Downloading mappings to {fname}')
         mapping = request('mapping')
         with open(fname, 'w') as f:
             json.dump(mapping, f)
@@ -54,9 +55,7 @@ def load_mappings(
         return {str(m['id']): m for m in json.load(f)}
 
 
-def load_recipes(
-    fname=config.DATA_DIR / 'recipes.json', download: bool = True
-):
+def load_recipes(fname: str | os.PathLike, download: bool = True):
     '''
     Returns a list of item recipes (from Flipping-utilities/osrs-datasets)
 
@@ -68,7 +67,7 @@ def load_recipes(
         if not download:
             raise FileNotFoundError(f'{fname} not found. Did you download it?')
 
-        print(f'Downloading recipes to {fname}')
+        logging.info(f'Downloading recipes to {fname}')
         recipes = requests.get(
             'https://raw.githubusercontent.com/Flipping-Utilities/osrs-datasets/master/recipes.json'
         ).json()

@@ -1,6 +1,6 @@
 from datetime import datetime
-from dateutil import tz
 
+from dateutil import tz
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 

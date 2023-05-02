@@ -1,17 +1,13 @@
+import json
 import logging
 import os
-import json
 import time
 from datetime import datetime, timedelta
-from typing import Literal, Any, Callable
 from pathlib import Path
+from typing import Literal, Any, Callable
 
-from . import config
 
-
-def log_json(
-    prices: dict, directory: str | os.PathLike = config.DATA_DIR / 'json'
-):
+def log_json(prices: dict, directory: str | os.PathLike):
     '''Requests and logs item prices to a timestamped JSON file'''
 
     directory = Path(directory)

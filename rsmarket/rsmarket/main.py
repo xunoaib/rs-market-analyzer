@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import os
 import logging
+import os
+from pathlib import Path
 from typing import Any, Literal
 
+from dotenv import load_dotenv
 from sqlalchemy import Engine
 from tabulate import tabulate
 
-from . import api, db, config, logger as rslogger
+from . import api, db, logger as rslogger
 
 logging.basicConfig(
     level=os.getenv('LOGLEVEL', 'INFO').upper(),
-    format='%(asctime)s %(levelname)-8s %(message)s',
+    format='%(asctime)s [%(levelname)s] %(message)s',
 )
 
 
@@ -29,7 +31,7 @@ def json_to_rows(data: dict):
 
 def get_parser():
     parser = argparse.ArgumentParser(prog='rsmarket')
-    subparsers = parser.add_subparsers(dest='cmd')
+    subparsers = parser.add_subparsers(dest='cmd', required=True)
     parser_log = subparsers.add_parser(
         'log', help='Continuously log API prices to the database'
     )
@@ -73,8 +75,7 @@ def get_parser():
         help='Pretty-print tabular results'
     )
 
-    parser_dbtest = subparsers.add_parser('dbtest', help='Run database tests')
-    parser_test = subparsers.add_parser('test', help='For debugging')
+    subparsers.add_parser('dbtest', help='Run database tests')
     return parser
 
 
@@ -89,26 +90,38 @@ def price_logger_factory(engine: Engine):
 
 
 def _main():
+    # attempt to load the non-docker config to ensure consistent behavior
+    # between docker and non-docker environments
+    SCRIPT_DIR = Path(__file__).parent
+    load_dotenv(SCRIPT_DIR / '../../env/rsmarket-local.env')
+
     parser = get_parser()
     args = parser.parse_args()
-    config.DATA_DIR.mkdir(exist_ok=True)
-
-    # ensure mappings/recipes have been downloaded
-    mappings = api.load_mappings()
-    recipes = api.load_recipes()
-
-    engine = db.connect_and_initialize(mappings)
 
     if args.cmd == 'json':
         prices = api.request(args.endpoint)
-
         if args.tabulate:
             headers, rows = json_to_rows(prices['data'])
             print(tabulate(rows, headers=headers))
         else:
             print(json.dumps(prices, indent=2))
+        return
 
-    elif args.cmd == 'log':
+    # ensure database url has been set
+    engine_url = os.getenv('DB_ENGINE_URL')
+    if not engine_url:
+        logging.error('DB_ENGINE_URL not set')
+        return False
+
+    # ensure data directory exists and mappings/recipes have been downloaded
+    DATA_DIR = Path(os.getenv('DATA_DIR', SCRIPT_DIR / 'data'))
+    DATA_DIR.mkdir(exist_ok=True)
+
+    mappings = api.load_mappings(DATA_DIR / 'mappings.json')
+    recipes = api.load_recipes(DATA_DIR / 'recipes.json')
+    engine = db.connect_and_initialize(mappings, engine_url)
+
+    if args.cmd == 'log':
         if not args.force and input(
             'Are you sure you want to begin logging? [y/N] '
         ).lower() != 'y':
@@ -120,18 +133,8 @@ def _main():
             enable_1h_interval=not args.disable_1h,
             enable_5m_interval=not args.disable_5m
         )
-
     elif args.cmd == 'dbtest':
         db.test_queries(engine)
-
-    # elif args.cmd == 'test':
-    #     from sqlalchemy.orm import Session
-    #     from sqlalchemy import select
-    #     from .dbschema import ItemInfo
-    #     with Session(engine) as session:
-    #         known_ids = set(row.id for row in session.execute(select(ItemInfo.id)).all())
-    #         print(known_ids)
-
     else:
         parser.print_help()
 

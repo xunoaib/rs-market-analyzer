@@ -11,28 +11,17 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     env_file:
-      - ./env/postgres-vars.env
+      - ./env/postgres.env
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - 15432:80
-    volumes:
-      - pgadmin:/var/lib/pgadmin
-    depends_on:
-      - postgres
-    env_file:
-      - ./env/pgadmin-vars.env
-
   rsmarket:
     build: rsmarket
     env_file:
-      - ./env/rsmarket-vars.env
+      - ./env/rsmarket-docker.env
     environment:
       - DATA_DIR=/opt/rsdata
     volumes:
@@ -44,6 +33,5 @@ services:
 
 volumes:
   postgres-data:
-  pgadmin:
 
 # vi: sw=2 ts=2

@@ -2,20 +2,17 @@
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import Engine, create_engine, select, func, and_
+from sqlalchemy import Engine, create_engine, select, func, and_, true, false
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
-from . import config
 from .dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice, format_timestamp
 
 logger = logging.getLogger(__name__)
 
 
-def connect_and_initialize(
-    mappings: dict, engine_url: str = config.DB_ENGINE_URL
-):
+def connect_and_initialize(mappings: dict, engine_url: str):
     '''Connect to the database, initialize tables, and add item mappings'''
 
     engine = create_engine(engine_url, echo=False)
@@ -98,9 +95,8 @@ def latest_margins(session: Session):
     q_avgHourlyVolume = (
         select(AvgHourPrice.id, col_dailyVolume, col_avgHourlyVolume)  #
         .where(AvgHourPrice.timestamp > yesterday)  #
-        .order_by(AvgHourPrice.timestamp)  #
         .group_by(AvgHourPrice.id)  #
-        .order_by(col_avgHourlyVolume.desc())
+        .order_by(col_avgHourlyVolume.desc())  #
     ).subquery()
     dailyVolume = q_avgHourlyVolume.c.dailyVol
 
@@ -143,7 +139,7 @@ def latest_margins(session: Session):
         .join(q_avgHourlyVolume, ItemInfo.id == q_avgHourlyVolume.c.id)  #
         .where(LatestPrice.timestamp == ts_latest)  #
         .where(AvgHourPrice.timestamp == ts_hour)  #
-        .where(ItemInfo.members == 0)  #
+        .where(ItemInfo.members == false())  #
         .where(hourlyVolume * 24 > 10000)  #
         .order_by(profit.desc())  #
     )
