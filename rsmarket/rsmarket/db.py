@@ -19,7 +19,13 @@ def connect_and_initialize(mappings: dict, engine_url: str):
 
     with Session(engine) as session:
         try:
-            session.add_all(ItemInfo(**kwargs) for kwargs in mappings.values())
+            # insert rows for missing item mappings (and avoid inserting duplicates)
+            known_ids = set(
+                row.id for row in session.execute(select(ItemInfo.id)).all()
+            )
+            items = [ItemInfo(**kwargs) for kwargs in mappings.values()]
+            items = [item for item in items if item.id not in known_ids]
+            session.add_all(items)
             session.commit()
         except IntegrityError:
             pass
