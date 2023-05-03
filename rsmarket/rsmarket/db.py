@@ -164,51 +164,57 @@ def latest_margins(session: Session):
         print('No data to show')
 
 
-def test_queries(engine: Engine):
-    '''Sandbox for database queries'''
+def count_24hr_samples(session: Session):
+    # count the number of hourly log events in the last hour
+    yesterday = (datetime.utcnow() + timedelta(days=-1)).timestamp()
+    query = (
+        select(func.count(AvgHourPrice.timestamp))  #
+        .where(AvgHourPrice.timestamp >= yesterday)  #
+        .group_by(AvgHourPrice.timestamp)  #
+    )
+    rows = session.execute(query).all()
+    print(
+        'Found {} of 24 possible hourly samples in the last 24 hours'.format(
+            len(rows)
+        )
+    )
 
-    with Session(engine) as session:
-        latest_margins(session)
-        session.commit()
 
-
-def log_prices_to_db(json_prices: dict, engine: Engine):
+def log_prices_to_db(json_prices: dict, session: Session):
     if 'timestamp' not in json_prices:
         json_prices['timestamp'] = int(datetime.utcnow().timestamp())
 
-    with Session(engine) as session:
+    # remove invalid items which would cause foreign key constraints to fail
+    known_ids = set(
+        row.id for row in session.execute(select(ItemInfo.id)).all()
+    )
 
-        # remove invalid items which would cause foreign key constraints to fail
-        known_ids = set(
-            row.id for row in session.execute(select(ItemInfo.id)).all()
+    objs = prices_to_objects(json_prices)
+    objs = [obj for obj in objs if obj.id in known_ids]
+
+    if not objs:
+        logging.error(
+            'Attempted to log an empty list of prices for endpoint "%s" at %s'
+            % (json_prices['endpoint'], json_prices['timestamp'])
         )
+        return False
 
-        objs = prices_to_objects(json_prices)
-        objs = [obj for obj in objs if obj.id in known_ids]
+    # check if logs already exist for this endpoint at the given time
+    obj = objs[0]
+    cls = obj.__class__
 
-        if not objs:
-            logging.error(
-                'Attempted to log an empty list of prices for endpoint "%s" at %s'
-                % (json_prices['endpoint'], json_prices['timestamp'])
-            )
-            return False
+    res = session.execute(
+        select(cls).where(
+            and_(cls.id == obj.id, cls.timestamp == obj.timestamp)
+        )
+    ).all()
 
-        # check if logs already exist for this endpoint at the given time
-        obj = objs[0]
-        cls = obj.__class__
+    if res:
+        logging.info(
+            'Skipped adding duplicate log for %s at %s' %
+            (json_prices['endpoint'], json_prices['timestamp'])
+        )
+        return False
 
-        res = session.execute(
-            select(cls).where(
-                and_(cls.id == obj.id, cls.timestamp == obj.timestamp)
-            )
-        ).all()
-
-        if res:
-            logging.info(
-                'Skipped adding duplicate log for %s at %s' %
-                (json_prices['endpoint'], json_prices['timestamp'])
-            )
-            return False
-
-        session.add_all(objs)
-        session.commit()
+    session.add_all(objs)
+    session.commit()

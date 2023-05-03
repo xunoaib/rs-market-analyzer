@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from dotenv import load_dotenv
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 from tabulate import tabulate
 
 from . import api, db, logger as rslogger
@@ -75,7 +76,11 @@ def get_parser():
         help='Pretty-print tabular results'
     )
 
-    subparsers.add_parser('dbtest', help='Run database tests')
+    parser_dbtest = subparsers.add_parser('dbtest', help='Run various database tests')
+    db_subparsers = parser_dbtest.add_subparsers(dest='subcmd')
+    db_subparsers.add_parser('count')
+    db_subparsers.add_parser('margins')
+
     return parser
 
 
@@ -133,8 +138,17 @@ def _main():
             enable_1h_interval=not args.disable_1h,
             enable_5m_interval=not args.disable_5m
         )
+
     elif args.cmd == 'dbtest':
-        db.test_queries(engine)
+        with Session(engine) as session:
+            match args.subcmd:
+                case 'count':
+                    db.count_24hr_samples(session)
+                case 'margins':
+                    db.latest_margins(session)
+                case _:
+                    db.latest_margins(session)
+
     else:
         parser.print_help()
 

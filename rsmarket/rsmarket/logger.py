@@ -73,12 +73,12 @@ def loop(
 
     if enable_1h_interval:
         logging.info(
-            'Next hourly log event at:      {}'.
+            'Next hourly log event at: {}'.
             format(last_1h + timedelta(hours=1))
         )
     if enable_5m_interval:
         logging.info(
-            'Next five minute log eventat:  {}'.
+            'Next five minute log event at: {}'.
             format(last_5m + timedelta(minutes=5))
         )
 
