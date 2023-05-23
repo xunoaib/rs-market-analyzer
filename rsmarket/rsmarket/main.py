@@ -2,12 +2,12 @@
 import argparse
 import json
 import logging
+import requests
 import os
 from pathlib import Path
 from typing import Any, Literal
 
 from dotenv import load_dotenv
-from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
@@ -84,12 +84,16 @@ def get_parser():
     return parser
 
 
-def price_logger_factory(engine: Engine):
+def price_logger_factory(session: Session):
     '''Returns a function which requests API prices and logs them to the given database engine'''
 
     def request_and_log(endpoint: Literal['latest', '5m', '1h']):
-        prices = api.request(endpoint)
-        return db.log_prices_to_db(prices, engine=engine)
+        try:
+            prices = api.request(endpoint)
+            return db.log_prices_to_db(prices, session=session)
+        except requests.RequestException:
+            logging.exception('Error requesting prices')
+            return False
 
     return request_and_log
 
@@ -125,13 +129,14 @@ def _main():
     mappings = api.load_mappings(DATA_DIR / 'mappings.json')
     recipes = api.load_recipes(DATA_DIR / 'recipes.json')
     engine = db.connect_and_initialize(mappings, engine_url)
+    session = Session(engine)
 
     if args.cmd == 'log':
         if not args.force and input(
             'Are you sure you want to begin logging? [y/N] '
         ).lower() != 'y':
             return
-        request_and_log = price_logger_factory(engine)
+        request_and_log = price_logger_factory(session)
         rslogger.loop(
             request_and_log,
             log_now=args.now,
@@ -140,18 +145,16 @@ def _main():
         )
 
     elif args.cmd == 'dbtest':
-        with Session(engine) as session:
-            match args.subcmd:
-                case 'count':
-                    db.count_24hr_samples(session)
-                case 'margins':
-                    db.latest_margins(session)
-                case _:
-                    db.latest_margins(session)
+        match args.subcmd:
+            case 'count':
+                db.count_24hr_samples(session)
+            case 'margins':
+                db.latest_margins(session)
+            case _:
+                db.latest_margins(session)
 
     else:
         parser.print_help()
-
 
 def main():
     try:
