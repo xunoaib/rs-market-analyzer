@@ -2,16 +2,17 @@
 import argparse
 import json
 import logging
-import requests
 import os
 from pathlib import Path
 from typing import Any, Literal
 
+import requests
 from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
-from . import api, db, logger as rslogger
+from . import api, db
+from . import logger as rslogger
 
 logging.basicConfig(
     level=os.getenv('LOGLEVEL', 'INFO').upper(),

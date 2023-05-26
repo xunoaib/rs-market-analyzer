@@ -7,6 +7,7 @@ from typing import Literal
 import requests
 
 DEFAULT_HEADERS = {'User-Agent': 'Market Experimentation'}
+HTTP_TIMEOUT_SEC = 10
 
 
 def request(
@@ -25,7 +26,8 @@ def request(
 
     data = requests.get(
         f'https://prices.runescape.wiki/api/v1/osrs/{endpoint}',
-        headers=headers
+        headers=headers,
+        timeout=HTTP_TIMEOUT_SEC
     ).json()
 
     if annotate and endpoint != 'mapping':
@@ -45,7 +47,7 @@ def load_mappings(fname: str | os.PathLike, download: bool = True):
         if not download:
             raise FileNotFoundError(f'{fname} not found. Did you download it?')
 
-        logging.info(f'Downloading mappings to {fname}')
+        logging.info('Downloading mappings to %s', fname)
         mapping = request('mapping')
         with open(fname, 'w') as f:
             json.dump(mapping, f)
@@ -66,9 +68,10 @@ def load_recipes(fname: str | os.PathLike, download: bool = True):
         if not download:
             raise FileNotFoundError(f'{fname} not found. Did you download it?')
 
-        logging.info(f'Downloading recipes to {fname}')
+        logging.info('Downloading recipes to %s', fname)
         recipes = requests.get(
-            'https://raw.githubusercontent.com/Flipping-Utilities/osrs-datasets/master/recipes.json'
+            'https://raw.githubusercontent.com/Flipping-Utilities/osrs-datasets/master/recipes.json',
+            timeout=HTTP_TIMEOUT_SEC
         ).json()
 
         with open(fname, 'w') as f:

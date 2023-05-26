@@ -76,8 +76,7 @@ def add_commas_to_rows(rows):
     results = []
     for row in rows:
         tup = tuple(
-            f'{int(v):,}' if isinstance(v, int) or isinstance(v, float) else v
-            for v in row
+            f'{int(v):,}' if isinstance(v, (int, float)) else v for v in row
         )
         results.append(tup)
     return results
@@ -174,9 +173,7 @@ def count_24hr_samples(session: Session):
     )
     rows = session.execute(query).all()
     print(
-        'Found {} of 24 possible hourly samples in the last 24 hours'.format(
-            len(rows)
-        )
+        f'Found {len(rows)} of 24 possible hourly samples in the last 24 hours'
     )
 
 
@@ -194,8 +191,8 @@ def log_prices_to_db(json_prices: dict, session: Session):
 
     if not objs:
         logging.error(
-            'Attempted to log an empty list of prices for endpoint "%s" at %s'
-            % (json_prices['endpoint'], json_prices['timestamp'])
+            'Attempted to log an empty list of prices for endpoint "%s" at %s',
+            json_prices['endpoint'], json_prices['timestamp']
         )
         return False
 
@@ -211,8 +208,8 @@ def log_prices_to_db(json_prices: dict, session: Session):
 
     if res:
         logging.info(
-            'Skipped adding duplicate log for %s at %s' %
-            (json_prices['endpoint'], json_prices['timestamp'])
+            'Skipped adding duplicate log for %s at %s',
+            json_prices['endpoint'], json_prices['timestamp']
         )
         return False
 
