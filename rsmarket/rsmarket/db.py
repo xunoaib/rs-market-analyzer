@@ -147,7 +147,7 @@ def latest_margins(session: Session):
         .order_by(profit.desc())  #
     )
 
-    save_query = open('./my_files/dataframe.csv', "a")
+    save_query = open('./my_files/dataframe.csv', "w")
     print("about to parse cringe")
     with save_query as csvfile:
         csvwriter = csv.writer(csvfile, delimiter = ',', quotechar='"', quoting=csv.QUOTE_MINIMAL)

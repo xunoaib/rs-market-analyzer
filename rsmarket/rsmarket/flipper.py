@@ -143,6 +143,11 @@ def _main():
             enable_1h_interval=not args.disable_1h,
             enable_5m_interval=not args.disable_5m
         )
+    
+    elif args.cmd == 'generate_dataframe':
+        print("CRINGE")
+        db.latest_margins(session.execute(db.query).all())
+        return
 
     elif args.cmd == 'dbtest':
         match args.subcmd:
