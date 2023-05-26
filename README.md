@@ -34,7 +34,3 @@ API prices using the `rsmarket log` command.
 
 - Start services with `docker compose up`. Add `-d` to run them in the background
 - Stop services with `docker compose down`. Add `--volumes` to completely wipe the database
-
-
-
-### Test edit
