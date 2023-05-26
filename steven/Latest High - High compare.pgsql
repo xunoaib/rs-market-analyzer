@@ -12,8 +12,8 @@ SELECT
         'HH:MI:SS' 
     ) AS "Detected Time",
     --TODO Add time since price change
-    latest.high AS "New Price",
-    second_max.high AS "Old Price",
+    latest.high AS "New Instabuy Price",
+    second_max.high AS "Old Instabuy Price",
     mapping.limit AS "Buy Limit"
 FROM (
     SELECT *,
