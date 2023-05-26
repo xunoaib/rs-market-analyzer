@@ -1,7 +1,7 @@
 -- This query currently catches all prices that have dropped 5%+ since last detect
 -- Still needs filters for timestamp and a way to deem price changes 'significant'
 
-SELECT 
+SELECT
     mapping.name AS "Item Name",
     to_char(
         latest."highTime" * '1 second'::interval,
@@ -38,7 +38,7 @@ LEFT JOIN (
 WHERE latest.rn = 1 -- Select the latest entry per ID
     AND latest."highTime" > second_max.high
     AND latest.high < 0.95 * second_max.high -- Rudimentary price detection, needs extensive work to be meaningful
-    --TODO Add time filter
-    --TODO statistics based filters go here
+    --TODO Add time filter. Possibly not needed.
+    --TODO statistics based filters go here. Split query into low and high volume versions for simplicity?
 ORDER BY latest."highTime" DESC
 LIMIT 500;
