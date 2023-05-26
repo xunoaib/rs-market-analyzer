@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import create_engine, select, func, and_, false
+from sqlalchemy import select, func, and_, false, Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from tabulate import tabulate
@@ -11,14 +11,12 @@ from .dbschema import Base, ItemInfo, LatestPrice, AvgFiveMinPrice, AvgHourPrice
 logger = logging.getLogger(__name__)
 
 
-def connect_and_initialize(mappings: dict, engine_url: str):
-    '''Connect to the database, initialize tables, and add item mappings'''
+def initialize(mappings: dict, engine: Engine):
+    '''Initialize database table schemas add item mappings'''
 
-    engine = create_engine(engine_url, echo=False)
-    Base.metadata.create_all(engine)
-
-    with Session(engine) as session:
-        try:
+    try:
+        Base.metadata.create_all(engine)
+        with Session(engine) as session:
             # insert rows for missing item mappings (and avoid inserting duplicates)
             known_ids = set(
                 row.id for row in session.execute(select(ItemInfo.id)).all()
@@ -27,10 +25,8 @@ def connect_and_initialize(mappings: dict, engine_url: str):
             items = [item for item in items if item.id not in known_ids]
             session.add_all(items)
             session.commit()
-        except IntegrityError:
-            pass
-
-    return engine
+    except IntegrityError:
+        pass
 
 
 def prices_to_objects(

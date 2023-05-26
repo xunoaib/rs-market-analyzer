@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 import requests
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
@@ -129,10 +130,13 @@ def _main():
 
     mappings = api.load_mappings(DATA_DIR / 'mappings.json')
     recipes = api.load_recipes(DATA_DIR / 'recipes.json')
-    engine = db.connect_and_initialize(mappings, engine_url)
+
+    # connect to database
+    engine = create_engine(engine_url, echo=False)
     session = Session(engine)
 
     if args.cmd == 'log':
+        db.initialize(mappings, engine)
         if not args.force and input(
             'Are you sure you want to begin logging? [y/N] '
         ).lower() != 'y':
