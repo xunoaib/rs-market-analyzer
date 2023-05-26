@@ -29,6 +29,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: "log -f -n"
+    command: "rsmarket log -f -n"
 
 # vi: sw=2 ts=2

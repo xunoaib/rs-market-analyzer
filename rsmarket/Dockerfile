@@ -11,4 +11,4 @@ COPY . .
 
 RUN pip install .
 
-ENTRYPOINT ["rsmarket"]
+CMD ["rsmarket"]
