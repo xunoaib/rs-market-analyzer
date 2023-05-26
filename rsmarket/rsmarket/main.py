@@ -3,6 +3,8 @@ import argparse
 import json
 import logging
 import os
+import signal
+import sys
 from pathlib import Path
 from typing import Any, Literal
 
@@ -162,9 +164,12 @@ def _main():
         parser.print_help()
 
 def main():
+    # shutdown gracefully when Docker sends SIGTERM
+    signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+
     try:
         return _main()
-    except (KeyboardInterrupt, BrokenPipeError):
+    except (KeyboardInterrupt, BrokenPipeError, SystemExit):
         pass
 
 
