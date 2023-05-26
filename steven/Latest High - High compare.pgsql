@@ -1,33 +1,44 @@
--- This query currently catches all prices that have dropped since last detect
+-- This query currently catches all prices that have dropped 5%+ since last detect
 -- Still needs filters for timestamp and a way to deem price changes 'significant'
--- Needs subquery to select old price
+
 SELECT 
     mapping.name AS "Item Name",
     to_char(
         latest."highTime" * '1 second'::interval,
         'HH:MI:SS' 
-    ) "Change Time", --Converts UNIX timestamp to something human readable
+    ) AS "Change Time",  --Converts UNIX timestamp to something human readable. probably will delete
     to_char(
         latest.timestamp * '1 second'::interval,
         'HH:MI:SS' 
-    ) "Detected Time", 
+    ) AS "Detected Time",
+    --TODO Add time since price change
     latest.high AS "New Price",
-    mapping.limit AS "Limit"
-FROM latest
+    second_max.high AS "Old Price",
+    mapping.limit AS "Buy Limit"
+FROM (
+    SELECT *,
+            ROW_NUMBER() 
+            OVER (PARTITION BY id ORDER BY timestamp DESC) 
+            AS rn
+    FROM latest
+) AS latest
 INNER JOIN mapping ON latest.id = mapping.id
-INNER JOIN (
-    SELECT id, MAX(timestamp) AS max_timestamp
+LEFT JOIN (
+    SELECT id, high
     FROM (
-        SELECT id, timestamp,
-               ROW_NUMBER() OVER 
-                    (PARTITION BY id 
-                    ORDER BY timestamp DESC) 
-                    AS rn --Assigns row numbers based on timestamp 
+        SELECT id, high,
+               ROW_NUMBER()
+                OVER (PARTITION BY id
+                ORDER BY timestamp DESC) 
+                AS rn --Assign row numbers based on timestamp for later comparisons
         FROM latest
-    ) AS subquery
-    WHERE rn = 2 -- Select the second highest timestamp per ID for comparison
-    GROUP BY id
-) AS latest_second_max ON latest.id = latest_second_max.id
-WHERE latest."highTime" > latest_second_max.max_timestamp
-ORDER BY timestamp DESC
+    ) AS second_subquery
+    WHERE rn = 2
+) AS second_max ON latest.id = second_max.id
+WHERE latest.rn = 1 -- Select the latest entry per ID
+    AND latest."highTime" > second_max.high
+    AND latest.high < 0.95 * second_max.high -- Rudimentary price detection, needs extensive work to be meaningful
+    --TODO Add time filter
+    --TODO statistics based filters go here
+ORDER BY latest."highTime" DESC
 LIMIT 500;
