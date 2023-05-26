@@ -25,6 +25,7 @@ GRANT pg_write_all_data TO writer;
 -- create user roles
 CREATE ROLE rsadmin WITH INHERIT LOGIN PASSWORD 'rsadmin';
 GRANT reader, writer TO rsadmin;
+GRANT ALL ON schema public TO rsadmin;
 ALTER ROLE rsadmin SET log_statement = 'none';
 
 CREATE ROLE rsuser WITH INHERIT LOGIN PASSWORD 'rsuser';
