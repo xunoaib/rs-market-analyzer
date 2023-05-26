@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import Engine, create_engine, select, func, and_, true, false
+from sqlalchemy import create_engine, select, func, and_, false
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from tabulate import tabulate
@@ -92,13 +92,13 @@ def latest_margins(session: Session):
 
     # average hourly volumes calculated from the total daily volumes
     yesterday = (datetime.utcnow() + timedelta(days=-1)).timestamp()
-    sum_of_volumes = func.sum(
-        AvgHourPrice.highPriceVolume + AvgHourPrice.lowPriceVolume
-    )
-    col_dailyVolume = func.round(sum_of_volumes).label('dailyVol')
-    col_avgHourlyVolume = (col_dailyVolume / 24).label('avgHourlyVol')
+    volume_sum = func.round(
+        func.sum(AvgHourPrice.highPriceVolume + AvgHourPrice.lowPriceVolume)
+    ).label('dailyVol')
+    num_log_events = func.count(AvgHourPrice.timestamp)
+    col_avgHourlyVolume = (volume_sum / num_log_events).label('avgHourlyVol')
     q_avgHourlyVolume = (
-        select(AvgHourPrice.id, col_dailyVolume, col_avgHourlyVolume)  #
+        select(AvgHourPrice.id, volume_sum, col_avgHourlyVolume)  #
         .where(AvgHourPrice.timestamp > yesterday)  #
         .group_by(AvgHourPrice.id)  #
         .order_by(col_avgHourlyVolume.desc())  #

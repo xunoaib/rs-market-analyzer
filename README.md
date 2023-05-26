@@ -9,7 +9,7 @@ The `env` directory contains environment variables used by the `rsmarket` tool
 and the provided Docker containers.
 
 The PostgreSQL database is initialized with statements from
-`postgres/init.sql`. If you intend to host a server, modify this file as
+`postgres/*.sql`. If you intend to host a server, modify this file as
 needed, i.e. to change the default usernames, passwords, and roles.
 
 The database URL for `rsmarket` must be set in `env/rsmarket-local.env` and/or
