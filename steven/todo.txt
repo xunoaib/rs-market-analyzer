@@ -12,6 +12,7 @@ pSQL
             -- TODO margin calculation
             -- TODO anticipated/max profit (Limit*margin)
             -- Probably need to grab the timing of the second last high price?
+    - 1h volume is wonky. Should fix via column in mapping/new 24hr entity/statistics entity
 Python - Create some method to visualize data over time
 
 Ideas for detecting notable price variations:
