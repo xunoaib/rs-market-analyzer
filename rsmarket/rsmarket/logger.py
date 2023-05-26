@@ -65,8 +65,6 @@ def loop(
         request_and_log('5m')
         request_and_log('1h')
 
-    logging.info('=== Started price logging loop ===')
-
     now = datetime.now()
     last_1h = round_down_1h(now)
     last_5m = round_down_5m(now)
