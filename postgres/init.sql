@@ -1,32 +1,31 @@
--- wipes, then initializes the postgresql database, users and roles
-
 SET default_transaction_read_only = off;
 SET client_encoding = 'UTF8';
 SET standard_conforming_strings = on;
 
 -- delete database and users
-DROP DATABASE runescape;
-DROP ROLE rsadmin;
-DROP ROLE rsuser;
-
--- create database and tables
 CREATE DATABASE runescape;
-
--- create roles
-CREATE ROLE rsadmin;
-ALTER ROLE rsadmin WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB LOGIN NOREPLICATION NOBYPASSRLS PASSWORD 'rsadmin';
-
-CREATE ROLE rsuser;
-ALTER ROLE rsuser WITH NOSUPERUSER INHERIT NOCREATEROLE NOCREATEDB LOGIN NOREPLICATION NOBYPASSRLS PASSWORD 'rsuser';
 
 -- remove default connect privileges on the database
 REVOKE CONNECT ON DATABASE runescape FROM public;
 
--- grant connect privileges to users
-GRANT CONNECT ON DATABASE runescape TO rsuser;
-GRANT CONNECT ON DATABASE runescape TO rsadmin;
+-- enable query logging for most users
+ALTER DATABASE runescape SET log_statement = 'all';
+ALTER ROLE postgres SET log_statement = 'none';
 
--- grant read/write privileges to users
-GRANT pg_read_all_data TO rsuser;
-GRANT pg_read_all_data TO rsadmin;
-GRANT pg_write_all_data TO rsadmin;
+-- create group roles
+CREATE ROLE application_base_user NOINHERIT;
+CREATE ROLE reader INHERIT;
+CREATE ROLE writer INHERIT;
+GRANT application_base_user TO reader, writer;
+
+GRANT CONNECT ON DATABASE runescape TO reader, writer;
+GRANT pg_read_all_data TO reader;
+GRANT pg_write_all_data TO writer;
+
+-- create user roles
+CREATE ROLE rsadmin WITH INHERIT LOGIN PASSWORD 'rsadmin';
+GRANT reader, writer TO rsadmin;
+ALTER ROLE rsadmin SET log_statement = 'none';
+
+CREATE ROLE rsuser WITH INHERIT LOGIN PASSWORD 'rsuser';
+GRANT reader TO rsuser;
