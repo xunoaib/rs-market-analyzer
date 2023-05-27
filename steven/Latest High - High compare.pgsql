@@ -1,5 +1,5 @@
--- This query currently catches all prices that have dropped 5%+ since last detect
--- Still needs filters for timestamp and a way to deem price changes 'significant'
+-- This query currently catches a filtered list of prices that have dropped since last detect
+-- Filters definitely need tuning, but it works now.
 SELECT
     mapping.name AS "Item Name",
 --    to_char(
@@ -53,5 +53,6 @@ WHERE latest.rn = 1 -- Select the latest entry per ID
    AND latest."highTime" - second_max."highTime" < 300 -- This is a really stupid way to filter out excessively illiquid items, but works as a proof of concept.
     --TODO statistics based filters go here (and delete previous line). Split query into low and high volume versions for simplicity?
    AND second_max.high > 30 --Filters out Vials, Feathers, Elemental runes. Number needs a tweak, probably.
-ORDER BY ((second_max.high - latest.high) * mapping.limit) DESC
-LIMIT 1000;
+   AND ((second_max.high - latest.high) * mapping.limit) >= 100000 -- Dirty solution. Switch to statistic based method later
+ORDER BY (extract(epoch from now()) - latest."highTime") ASC
+LIMIT 50;
