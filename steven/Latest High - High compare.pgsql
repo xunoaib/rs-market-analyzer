@@ -14,6 +14,7 @@ SELECT
 --        second_max."highTime" * '1 second'::interval,
 --        'HH:MI:SS' 
 --    ) AS "Previous Price Time", -- Displays the last time this item traded prior to latest. (Can be used to generate a "Staleness" indicator)
+-- Not sure if we will need absolute times, but left them in just in case.
     latest.high AS "New Instabuy Price",
     second_max.high AS "Previous Instabuy Price",
     mapping.limit AS "Buy Limit",
@@ -25,7 +26,7 @@ SELECT
         (latest."highTime" - second_max."highTime") * '1 second'::interval,
         'HH24:MI:SS' 
     ) AS "Price Staleness",
-    (second_max.high - latest.high) AS "Margin_latest",
+    (second_max.high - latest.high) AS "Margin_latest", -- TODO Add Sales tax
     ((second_max.high - latest.high) * mapping.limit) AS "max_profit_latest"
 FROM (
     SELECT *,
@@ -42,7 +43,7 @@ LEFT JOIN (
                ROW_NUMBER()
                 OVER (PARTITION BY id
                 ORDER BY timestamp DESC) 
-                AS rn --Assign row numbers based on timestamp for later comparisons
+                AS rn --Assign row numbers based on timestamp for later comparison between latest and second latest
         FROM latest
     ) AS second_subquery
     WHERE rn = 2 --Filtering to show second newest entry in latest
@@ -54,5 +55,5 @@ WHERE latest.rn = 1 -- Select the latest entry per ID
     --TODO statistics based filters go here (and delete previous line). Split query into low and high volume versions for simplicity?
    AND second_max.high > 30 --Filters out Vials, Feathers, Elemental runes. Number needs a tweak, probably.
    AND ((second_max.high - latest.high) * mapping.limit) >= 100000 -- Dirty solution. Switch to statistic based method later
-ORDER BY (extract(epoch from now()) - latest."highTime") ASC
-LIMIT 50;
+ORDER BY (extract(epoch from now()) - latest."highTime") ASC --Ordered by data staleness instead of max profit. I suspect an API call every 5 minutes might not be enough
+LIMIT 50; -- this should be more than enough assuming nothing is broken
