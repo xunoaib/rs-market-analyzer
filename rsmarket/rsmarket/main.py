@@ -9,9 +9,11 @@ from pathlib import Path
 from typing import Any, Literal
 
 import requests
+from psycopg2.errors import InsufficientPrivilege
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError, ProgrammingError
 from tabulate import tabulate
 
 from . import api, db
@@ -36,6 +38,7 @@ def json_to_rows(data: dict):
 
 def get_parser():
     parser = argparse.ArgumentParser(prog='rsmarket')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose tracebacks')
     subparsers = parser.add_subparsers(dest='cmd', required=True)
     parser_log = subparsers.add_parser(
         'log', help='Continuously log API prices to the database'
@@ -111,6 +114,9 @@ def _main():
     parser = get_parser()
     args = parser.parse_args()
 
+    if args.verbose:
+        os.environ['VERBOSE'] = '1'
+
     if args.cmd == 'json':
         prices = api.request(args.endpoint)
         if args.tabulate:
@@ -169,6 +175,12 @@ def main():
 
     try:
         return _main()
+    except (ProgrammingError, InsufficientPrivilege, OperationalError) as exc:
+        if os.getenv('VERBOSE', '0').lower() in ('0', 'false'):
+            logging.error('For a full traceback, use -v or set VERBOSE=1')
+            logging.error(str(exc.args[0]).strip())
+        else:
+            logging.exception(exc)
     except (KeyboardInterrupt, BrokenPipeError, SystemExit):
         pass
 
