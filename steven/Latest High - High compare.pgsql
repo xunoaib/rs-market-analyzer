@@ -1,6 +1,6 @@
 -- This query currently catches all prices that have dropped 5%+ since last detect
 -- Still needs filters for timestamp and a way to deem price changes 'significant'
-
+-- TODO Add price staleness functions (How old previous price was before current and how old new price is vs now)
 SELECT
     mapping.name AS "Item Name",
     to_char(
@@ -40,9 +40,10 @@ LEFT JOIN (
     WHERE rn = 2 --Filtering to show second newest entry in latest
 ) AS second_max ON latest.id = second_max.id
 WHERE latest.rn = 1 -- Select the latest entry per ID
-    AND latest."highTime" > second_max.high
-    AND latest.high < 0.95 * second_max.high -- Rudimentary price detection, needs extensive work to be meaningful
-    --TODO Add time filter. Possibly not needed.
-    --TODO statistics based filters go here. Split query into low and high volume versions for simplicity?
-ORDER BY latest."highTime" DESC
-LIMIT 500;
+   AND latest."highTime" > second_max.high
+   AND latest.high < 0.95 * second_max.high -- Rudimentary price detection, needs extensive work to be meaningful
+   AND latest."highTime" - second_max."highTime" < 300 -- This is a really stupid way to filter out excessively illiquid items, but works as a proof of concept.
+    --TODO statistics based filters go here (and delete previous line). Split query into low and high volume versions for simplicity?
+   AND second_max.high > 30 --Filters out Vials, Feathers, Elemental runes. Number needs a tweak, probably.
+ORDER BY latest."highTime" DESC -- TODO Replace this with margin * Buy limit "Potential profit"
+LIMIT 1000;
