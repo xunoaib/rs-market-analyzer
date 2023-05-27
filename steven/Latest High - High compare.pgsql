@@ -32,7 +32,7 @@ FROM (
     SELECT *,
             ROW_NUMBER() 
             OVER (PARTITION BY id ORDER BY timestamp DESC) 
-            AS rn
+            AS rn --First subquery assigns row 1 to latest
     FROM latest
 ) AS latest
 INNER JOIN mapping ON latest.id = mapping.id
@@ -43,12 +43,12 @@ LEFT JOIN (
                ROW_NUMBER()
                 OVER (PARTITION BY id
                 ORDER BY timestamp DESC) 
-                AS rn --Assign row numbers based on timestamp for later comparison between latest and second latest
+                AS rn --Assign row numbers based on second newest timestamp for comparison to latest
         FROM latest
     ) AS second_subquery
     WHERE rn = 2 --Filtering to show second newest entry in latest
 ) AS second_max ON latest.id = second_max.id
-WHERE latest.rn = 1 -- Select the latest entry per ID
+WHERE latest.rn = 1 -- Assigns latest timestamp to latest
    AND latest."highTime" > second_max.high
    AND latest.high < 0.95 * second_max.high -- Rudimentary price detection, needs extensive work to be meaningful
    AND latest."highTime" - second_max."highTime" < 300 -- This is a really stupid way to filter out excessively illiquid items, but works as a proof of concept.
