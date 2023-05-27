@@ -20,3 +20,8 @@ Ideas for detecting notable price variations:
         Probably too dificult. Need to do some research
     Statistically significant movement of latest over fivemin
         Automated filtering using historical data?
+    Confidence system?
+        Filter results into low, med, and high conf
+            compare current margin over historical prices for Confidence
+
+            
