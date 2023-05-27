@@ -38,7 +38,12 @@ def json_to_rows(data: dict):
 
 def get_parser():
     parser = argparse.ArgumentParser(prog='rsmarket')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Enable verbose tracebacks')
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        action='store_true',
+        help='Enable verbose tracebacks'
+    )
     subparsers = parser.add_subparsers(dest='cmd', required=True)
     parser_log = subparsers.add_parser(
         'log', help='Continuously log API prices to the database'
@@ -83,7 +88,9 @@ def get_parser():
         help='Pretty-print tabular results'
     )
 
-    parser_dbtest = subparsers.add_parser('dbtest', help='Run various database tests')
+    parser_dbtest = subparsers.add_parser(
+        'dbtest', help='Run various database tests'
+    )
     db_subparsers = parser_dbtest.add_subparsers(dest='subcmd')
     db_subparsers.add_parser('count')
     db_subparsers.add_parser('margins')
@@ -168,6 +175,7 @@ def _main():
 
     else:
         parser.print_help()
+
 
 def main():
     # shutdown gracefully when Docker sends SIGTERM
