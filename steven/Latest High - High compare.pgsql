@@ -21,18 +21,18 @@ SELECT
     to_char(
         (extract(epoch from now()) - latest."highTime") * '1 second'::interval,
         'HH24:MI:SS' 
-    ) AS "Data Staleness",
+    ) AS "Data Staleness", -- difference in time between last known trade data and right now
     to_char(
         (latest."highTime" - second_max."highTime") * '1 second'::interval,
         'HH24:MI:SS' 
-    ) AS "Price Staleness",
+    ) AS "Price Staleness", -- time difference between most recent logged price and second most recent. Won't be particularly accurate for high volume items
     (second_max.high - latest.high) AS "Margin_latest", -- TODO Add Sales tax
     ((second_max.high - latest.high) * mapping.limit) AS "max_profit_latest"
 FROM (
     SELECT *,
             ROW_NUMBER() 
             OVER (PARTITION BY id ORDER BY timestamp DESC) 
-            AS rn --First subquery assigns row 1 to latest
+            AS rn --First subquery assigns rows based on timestamp recency to latest
     FROM latest
 ) AS latest
 INNER JOIN mapping ON latest.id = mapping.id
