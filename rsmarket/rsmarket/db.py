@@ -1,8 +1,5 @@
 import logging
 from datetime import datetime, timedelta
-import numpy as np
-import pandas as pd
-import csv
 
 from sqlalchemy import select, func, and_, false, Engine
 from sqlalchemy.exc import IntegrityError
@@ -147,17 +144,6 @@ def latest_margins(session: Session):
         .order_by(profit.desc())  #
     )
 
-    save_query = open('./my_files/dataframe.csv', "w")
-    print("about to parse cringe")
-    with save_query as csvfile:
-        csvwriter = csv.writer(csvfile, delimiter = ',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        dataset = pd.DataFrame(session.execute(query).all())
-        ds = dataset.to_csv(save_query)
-       # for line in session.execute(query).all():
-       #     csvfile.write(line)
-
-    print("parsed cringe")
-    return
     result = session.execute(query)
     rows = result.all()
     headers = list(result.keys())
