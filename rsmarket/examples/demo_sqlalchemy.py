@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 '''
 Simple example demonstrating how to query the rsmarket database with SQLAlchemy's ORM syntax.
-SQLAlchemy Unified Tutorial: https://docs.sqlalchemy.org/en/20/tutorial/
+SQLAlchemy Unified Tutorial:        https://docs.sqlalchemy.org/en/20/tutorial/
+SQlAlchemy Using SELECT Statements: https://docs.sqlalchemy.org/en/20/tutorial/data_select.html
+SQLAlchemy Documentation Topics:    https://docs.sqlalchemy.org/en/20/index.html
 '''
 
 import os
@@ -40,6 +42,7 @@ def demo(session: Session):
 
 
 def main():
+    load_dotenv('.env')
     load_dotenv(
         Path(rsmarket.__file__).parent / '../../env/rsmarket-local.env'
     )
