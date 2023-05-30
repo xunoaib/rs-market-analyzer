@@ -33,7 +33,7 @@ def demo(session: Session):
         .where(ItemInfo.name == 'Yellow bead')
         .where(ItemInfo.members == false())  # only list F2P items
         .where(ItemInfo.name != 'Old school bond') # exclude bonds from query
-        .where(AvgHourPrice.timestamp >= latest_time - 500000)  # only show the latest price
+        .where(AvgHourPrice.timestamp >= latest_time - 600000)  # only show the latest price
         #.limit(1000)  # limit to 10 rows
     )
 
@@ -44,10 +44,11 @@ def demo(session: Session):
 
     dataframe = pd.read_sql_query(query, create_engine(os.environ['DB_ENGINE_URL'], echo=False))
     print(dataframe.columns)
-    ax = sb.lineplot(x='timestamp', y='profit', data=dataframe, hue='name', palette='colorblind', legend=False)
+    ax = sb.lineplot(x='timestamp', y='avgHighPrice', data=dataframe, hue='name', palette='colorblind', legend=True)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
     for i in ax.containers:
         ax.bar_label(i,)
+    sb.lineplot(x='timestamp', y='avgLowPrice', data=dataframe)
     plt.tight_layout()
     plt.show()
 
