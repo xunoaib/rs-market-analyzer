@@ -10,8 +10,8 @@ from pathlib import Path
 
 import rsmarket
 from dotenv import load_dotenv
-from rsmarket.dbschema import ItemInfo, AvgHourPrice, LatestPrice
-from sqlalchemy import create_engine, false, func, select, Engine
+from rsmarket.dbschema import ItemInfo, AvgHourPrice, AvgFiveMinPrice, LatestPrice
+from sqlalchemy import create_engine, false, func, select, Engine, union, and_, null, or_
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 import matplotlib.ticker
@@ -23,31 +23,59 @@ import pandas as pd
 def demo(session: Session, engine: Engine):
 
     # find the latest timestamp so we can ignore older logs
-    latest_time = select(func.max(AvgHourPrice.timestamp)).scalar_subquery()
+    latest_hour_time = select(func.max(AvgHourPrice.timestamp)).scalar_subquery()
+    latest_latest_time = select(func.max(LatestPrice.timestamp)).scalar_subquery()
 
     Price = AvgHourPrice
 
-    # construct query
-    profit = ((Price.avgHighPrice - Price.avgLowPrice) * ItemInfo.limit).label('profit')
+    # shared item condition for unioned queries
+    item_condition = and_(
+        ItemInfo.members == false(),
+        # ItemInfo.name == 'Mithril bar'
+        ItemInfo.name == 'Yellow bead'
+    )
 
-    query = (
+    # retrieve average hourly prices for the past week
+    query1 = (
         select(ItemInfo.name, Price.timestamp, Price.avgHighPrice, Price.avgLowPrice)
-        .join(ItemInfo).where(ItemInfo.name == 'Yellow bead')
+        .join(ItemInfo)
         .where(ItemInfo.members == false())  # only list F2P items
-        .where(Price.timestamp >= latest_time - 60 * 60 * 24 * 7) # show logs for the last 7 days
+        .where(Price.timestamp >= latest_hour_time - 60 * 60 * 24 * 7) # show logs for the last 7 days
+        .where(item_condition)
         # .limit(1000)  # limit rows
     )
 
-    print(query)  # show sql to be executed
+    # retrieve the latest price
+    query2 = (
+        select(ItemInfo.name, LatestPrice.low, LatestPrice.high, LatestPrice.lowTime, LatestPrice.highTime, LatestPrice.timestamp)
+        .join(ItemInfo)
+        .where(item_condition)
+        .where(LatestPrice.timestamp == latest_latest_time)
+    )
 
+    query = query1
     df_orig = dataframe = pd.read_sql_query(query, engine)
 
     # preserve only the columns to be graphed
-    drop_cols = set(dataframe.columns) - {'timestamp', 'avgHighPrice', 'avgLowPrice'}
+    save_cols = {'timestamp', 'avgHighPrice', 'avgLowPrice'}
+    drop_cols = set(dataframe.columns) - save_cols
     dataframe = dataframe.drop(list(drop_cols), axis=1)
 
+    # insert latest high/low prices to the data frame
+    result = session.execute(query2)
+    if rows := result.all():
+        _name, low, high, lowTime, highTime, ts = rows[0]
+        print('latest:', rows[0])
+        print('lowTime: ', datetime.fromtimestamp(lowTime))
+        print('highTime:', datetime.fromtimestamp(highTime))
+        print('taken at:', datetime.fromtimestamp(ts))
+        dataframe.loc[-1] = [lowTime, None, low]
+        dataframe.loc[-2] = [highTime, high, None]
+        dataframe.index = dataframe.index + 2
+        dataframe = dataframe.sort_index()
+
     # convert integer timestamps to datetime objects
-    dataframe.timestamp = dataframe.timestamp.apply(datetime.utcfromtimestamp)
+    dataframe.timestamp = dataframe.timestamp.apply(datetime.fromtimestamp)
 
     # convert to long (tidy) form to plot multiple columns: https://stackoverflow.com/a/44941463/1127098
     dfm = dataframe.melt('timestamp', var_name='cols', value_name='vals')
