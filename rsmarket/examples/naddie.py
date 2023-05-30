@@ -5,65 +5,82 @@ SQLAlchemy Unified Tutorial: https://docs.sqlalchemy.org/en/20/tutorial/
 '''
 
 import os
+from datetime import datetime
 from pathlib import Path
 
 import rsmarket
 from dotenv import load_dotenv
-from rsmarket.dbschema import ItemInfo, AvgHourPrice
-from sqlalchemy import create_engine, false, func, select
+from rsmarket.dbschema import ItemInfo, AvgHourPrice, LatestPrice
+from sqlalchemy import create_engine, false, func, select, Engine
 from sqlalchemy.orm import Session
 from tabulate import tabulate
+import matplotlib.ticker
 from matplotlib import pyplot as plt
 import seaborn as sb
 import pandas as pd
 
 
-def demo(session: Session):
+def demo(session: Session, engine: Engine):
 
     # find the latest timestamp so we can ignore older logs
     latest_time = select(func.max(AvgHourPrice.timestamp)).scalar_subquery()
 
+    Price = AvgHourPrice
+
     # construct query
-    profit = ((AvgHourPrice.avgHighPrice-AvgHourPrice.avgLowPrice)*ItemInfo.limit).label('profit')
-    weekly = AvgHourPrice.timestamp >= latest_time - 600000
+    profit = ((Price.avgHighPrice - Price.avgLowPrice) * ItemInfo.limit).label('profit')
 
     query = (
-        select(ItemInfo.name, ItemInfo.limit, AvgHourPrice.avgHighPrice, AvgHourPrice.avgLowPrice, AvgHourPrice.timestamp, profit)  # select columns to show
-        .join(AvgHourPrice, AvgHourPrice.id == ItemInfo.id)  # join with latest item prices
-        .where(ItemInfo.name == 'Yellow bead')
+        select(ItemInfo.name, Price.timestamp, Price.avgHighPrice, Price.avgLowPrice)
+        .join(ItemInfo).where(ItemInfo.name == 'Yellow bead')
         .where(ItemInfo.members == false())  # only list F2P items
-        .where(ItemInfo.name != 'Old school bond') # exclude bonds from query
-        .where(AvgHourPrice.timestamp >= latest_time - 600000)  # only show the latest price
-        #.limit(1000)  # limit to 10 rows
+        .where(Price.timestamp >= latest_time - 60 * 60 * 24 * 7) # show logs for the last 7 days
+        # .limit(1000)  # limit rows
     )
 
-    # execute query
-    result = session.execute(query)
-    rows = result.all()
+    print(query)  # show sql to be executed
 
+    df_orig = dataframe = pd.read_sql_query(query, engine)
 
-    dataframe = pd.read_sql_query(query, create_engine(os.environ['DB_ENGINE_URL'], echo=False))
-    print(dataframe.columns)
-    ax = sb.lineplot(x='timestamp', y='avgHighPrice', data=dataframe, hue='name', palette='colorblind', legend=True)
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right")
-    for i in ax.containers:
-        ax.bar_label(i,)
-    sb.lineplot(x='timestamp', y='avgLowPrice', data=dataframe)
+    # preserve only the columns to be graphed
+    drop_cols = set(dataframe.columns) - {'timestamp', 'avgHighPrice', 'avgLowPrice'}
+    dataframe = dataframe.drop(list(drop_cols), axis=1)
+
+    # convert integer timestamps to datetime objects
+    dataframe.timestamp = dataframe.timestamp.apply(datetime.utcfromtimestamp)
+
+    # convert to long (tidy) form to plot multiple columns: https://stackoverflow.com/a/44941463/1127098
+    dfm = dataframe.melt('timestamp', var_name='cols', value_name='vals')
+
+    # plot data
+    title = '{} of {}'.format(Price.__name__, df_orig['name'][0])
+    g = sb.catplot(x='timestamp', y='vals', hue='cols', data=dfm, scale=.75, kind='point').set(title=title)
+
+    # add grid lines to x/y axes
+    sb.set_style('whitegrid')
+    for ax in g.axes.flat:
+        ax.set_axisbelow(True)
+        ax.grid(True, color='lightgray', axis='both')
+
+    # configure number of xticks and their label angle
+    g.ax.xaxis.set_major_locator(matplotlib.ticker.MaxNLocator(60))
+    plt.xticks(rotation=90)
+
+    # reposition legend
+    sb.move_legend(g, 'upper right')
+
     plt.tight_layout()
     plt.show()
 
-    # print nice tabular output with headers and timestamps
-    headers = list(result.keys())
-    print(tabulate(rows, headers=headers))
-
 
 def main():
+    load_dotenv()
     load_dotenv(
         Path(rsmarket.__file__).parent / '../../env/rsmarket-local.env'
     )
     engine = create_engine(os.environ['DB_ENGINE_URL'], echo=False)
     with Session(engine) as session:
-        demo(session)
+        demo(session, engine)
 
 
 if __name__ == '__main__':

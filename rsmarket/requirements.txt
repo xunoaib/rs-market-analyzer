@@ -1,6 +1,9 @@
+pandas>=2.0.0
+Pillow
 psycopg2-binary
 python-dateutil
 python-dotenv
 requests
+seaborn
 SQLAlchemy>=2.0.15
 tabulate
