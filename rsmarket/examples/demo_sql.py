@@ -6,14 +6,9 @@ SQlAlchemy Using SELECT Statements: https://docs.sqlalchemy.org/en/20/tutorial/d
 SQLAlchemy Documentation Topics:    https://docs.sqlalchemy.org/en/20/index.html
 '''
 
-import os
-from pathlib import Path
-
-import rsmarket
 import sqlalchemy
-from dotenv import load_dotenv
 from rsmarket.db import convert_row_timestamps
-from sqlalchemy import create_engine
+from rsmarket.main import get_engine
 from sqlalchemy.orm import Session
 from tabulate import tabulate
 
@@ -39,13 +34,9 @@ def demo(session: Session):
 
 
 def main():
-    load_dotenv('.env')  # load creds from .env if it exists
-    load_dotenv(
-        Path(rsmarket.__file__).parent / '../../env/rsmarket-local.env'
-    )
-    engine = create_engine(os.environ['DB_ENGINE_URL'], echo=False)
-    with Session(engine) as session:
-        demo(session)
+    if (engine := get_engine()):
+        with Session(engine) as session:
+            demo(session)
 
 
 if __name__ == '__main__':

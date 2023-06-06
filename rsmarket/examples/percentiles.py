@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-import os
 import pickle
-from pathlib import Path
 
 import pandas as pd
-import rsmarket
-from dotenv import load_dotenv
+from rsmarket.main import get_engine
 from rsmarket.dbschema import ItemInfo, LatestPrice, AvgHourPrice, AvgFiveMinPrice
 from sqlalchemy import create_engine, false, func, select
 
@@ -32,7 +29,9 @@ def df_query_with_cache(query, engine):
         return df
 
 
-def demo(engine):
+def main():
+    engine = get_engine()
+
     latest_time = select(func.max(AvgFiveMinPrice.timestamp)).scalar_subquery()
     query = (
         select(ItemInfo.name, AvgFiveMinPrice, ItemInfo.limit)
@@ -71,15 +70,6 @@ def demo(engine):
             row = dft.loc[(dft.percentile >= (100 - perc) / 100).idxmax()]
             print(f'{perc:>3}th percentile =', int(row['price']), 'gp')
         print('-' * 28)
-
-def main():
-    load_dotenv()
-    load_dotenv(
-        Path(rsmarket.__file__).parent / '../../env/rsmarket-local.env'
-    )
-    engine = create_engine(os.environ['DB_ENGINE_URL'], echo=False)
-    demo(engine)
-
 
 if __name__ == '__main__':
     main()
