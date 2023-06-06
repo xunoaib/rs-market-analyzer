@@ -25,6 +25,26 @@ logging.basicConfig(
 )
 
 
+def get_engine():
+    '''
+    Configures and returns a SQL engine (using $DB_ENGINE_URL) after loadng
+    environment vars from .env and rsmarket-local.env. Returns False if the
+    variable was not defined.
+    '''
+
+    # look for local .env if running in another directory (ie: examples)
+    load_dotenv(os.getcwd() + '/.env')
+
+    # look for the non-docker config
+    load_dotenv(Path(__file__).parent / '../../env/rsmarket-local.env')
+
+    if engine_url := os.getenv('DB_ENGINE_URL'):
+        return create_engine(engine_url, echo=False)
+
+    logging.error('DB_ENGINE_URL not set')
+    return False
+
+
 def json_to_rows(data: dict):
     '''Transform a prices dict into a CSV-like list of rows. The first row contains the column names'''
 
@@ -113,11 +133,6 @@ def price_logger_factory(session: Session):
 
 
 def _main():
-    # attempt to load the non-docker config to ensure consistent behavior
-    # between docker and non-docker environments
-    SCRIPT_DIR = Path(__file__).parent
-    load_dotenv(SCRIPT_DIR / '../../env/rsmarket-local.env')
-
     parser = get_parser()
     args = parser.parse_args()
 
@@ -133,21 +148,15 @@ def _main():
             print(json.dumps(prices, indent=2))
         return
 
-    # ensure database url has been set
-    engine_url = os.getenv('DB_ENGINE_URL')
-    if not engine_url:
-        logging.error('DB_ENGINE_URL not set')
+    if not (engine := get_engine()):
         return False
 
     # ensure data directory exists and mappings/recipes have been downloaded
-    DATA_DIR = Path(os.getenv('DATA_DIR', SCRIPT_DIR / 'data'))
+    DATA_DIR = Path(os.getenv('DATA_DIR', Path(__file__).parent / 'data'))
     DATA_DIR.mkdir(exist_ok=True)
-
     mappings = api.load_mappings(DATA_DIR / 'mappings.json')
     recipes = api.load_recipes(DATA_DIR / 'recipes.json')
 
-    # connect to database
-    engine = create_engine(engine_url, echo=False)
     session = Session(engine)
 
     if args.cmd == 'log':
